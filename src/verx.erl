@@ -41,7 +41,7 @@
         destroy/1,
         id/1,
 
-        send/1, send/2
+        call/1, call/2
     ]).
 
 -define(XML_PATH, "/var/tmp/iso/qemu/demo1.xml").
@@ -54,27 +54,27 @@ info() ->
     info(node).
 
 info(node) ->
-    send(node_get_info);
+    call(node_get_info);
 info({domain, UUID}) when is_binary(UUID) ->
-    send(domain_get_info, [
+    call(domain_get_info, [
             verx_xdr:encode({string, ""}),  % name
             UUID,                           % UUID
             verx_xdr:encode({int, 0})       % id
         ]).
 
 id(N) ->
-    send(domain_lookup_by_id, [
+    call(domain_lookup_by_id, [
             verx_xdr:encode({int, N})    % domain id
         ]).
 
 capabilities() ->
-    send(get_capabilities).
+    call(get_capabilities).
 
 create() ->
     create(?XML_PATH).
 create(Path) ->
     {ok, Bin} = file:read_file(Path),
-    send(domain_create_xml, [
+    call(domain_create_xml, [
             verx_xdr:encode({string, Bin}), % XML
             verx_xdr:encode({int, 0})       % flags
         ]).
@@ -82,20 +82,20 @@ create(Path) ->
 list_domains() ->
     list_domains(10).
 list_domains(N) ->
-    send(list_domains, [
+    call(list_domains, [
             verx_xdr:encode({int, N})    % number of domains
         ]).
 
 destroy(UUID) ->
-    send(domain_destroy, [
+    call(domain_destroy, [
             verx_xdr:encode({string, ""}),  % UUID, not checked?
             UUID,                           % UUID, binary
             verx_xdr:encode({int, 0})       % id, not checked
         ]).
 
-send(Message) ->
-    send(Message, []).
-send(Message, Args) ->
+call(Message) ->
+    call(Message, []).
+call(Message, Args) ->
     {ok,S} = verx_rpc:open(),
     Res = case Args of
         [] -> verx_rpc:call(S, Message);
