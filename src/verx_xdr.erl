@@ -186,11 +186,9 @@ struct1(Buf, [Field|Struct], Acc) when is_binary(Field) ->
 struct1(Buf, [{Field, {Type, Len}}|Struct], Acc) when Type == char; Type == uchar ->
     try verx_xdr:decode({char, {Buf, Len}}) of
         {Val, <<>>} ->
-            Char = hd(binary:split(Val, <<0>>)),
-            struct1(<<>>, [], [{Field, Char}|Acc]);
+            struct1(<<>>, [], [{Field, Val}|Acc]);
         {Val, Rest} ->
-            Char = hd(binary:split(Val, <<0>>)),
-            struct1(Rest, Struct, [{Field, Char}|Acc])
+            struct1(Rest, Struct, [{Field, Val}|Acc])
     catch
         error:_ ->
             {error, Type, lists:reverse(Acc), Buf}
