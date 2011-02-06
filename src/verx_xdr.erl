@@ -65,7 +65,6 @@
     remote_sched_param,
     remote_vcpu_info,
 
-    remote_domain,
     remote_error
 ]).
 
@@ -111,13 +110,13 @@ encode({boolean, true}) ->
 encode({boolean, false}) ->
     <<0:32>>;
 
-encode({optional_data, {true, Buf}}) ->
+encode({optional_data, {_Type, false}}) ->
+    encode({boolean, false});
+encode({optional_data, {Type, Buf}}) ->
     list_to_binary([
         encode({boolean, true}),
-        Buf
+        encode({Type, Buf})
     ]);
-encode({optional_data, {false, _Buf}}) ->
-    encode({boolean, false});
 
 %%
 %% libivrt composite types
@@ -129,30 +128,30 @@ encode({remote_uuid, Buf}) when is_binary(Buf), byte_size(Buf) == ?VIR_UUID_BUFL
     encode({opaque, Buf});
 
 encode({remote_string, Buf}) ->
-    encode({optional, {true, encode({remote_nonnull_string, Buf})}});
+    encode({optional_data, {remote_nonnull_string, Buf}});
 encode({remote_nonnull_string, Buf}) ->
     encode({string, Buf});
 
 encode({remote_domain, Buf}) ->
-    encode({optional, {true, encode({remote_nonnull_domain, Buf})}});
+    encode({optional_data, {remote_nonnull_domain, Buf}});
 
 encode({remote_interface, Buf}) ->
-    encode({optional, {true, encode({remote_nonnull_interface, Buf})}});
+    encode({optional_data, {remote_nonnull_interface, Buf}});
 
 encode({remote_network, Buf}) ->
-    encode({optional, {true, encode({remote_nonnull_network, Buf})}});
+    encode({optional_data, {remote_nonnull_network, Buf}});
 
 encode({remote_node_device, Buf}) ->
-    encode({optional, {true, encode({remote_nonnull_device, Buf})}});
+    encode({optional_data, {remote_nonnull_device, Buf}});
 
 encode({remote_secret, Buf}) ->
-    encode({optional, {true, encode({remote_nonnull_secret, Buf})}});
+    encode({optional_data, {remote_nonnull_secret, Buf}});
 
 encode({remote_storage_pool, Buf}) ->
-    encode({optional, {true, encode({remote_nonnull_storage_pool, Buf})}});
+    encode({optional_data, {remote_nonnull_storage_pool, Buf}});
 
 encode({remote_storage_vol, Buf}) ->
-    encode({optional, {true, encode({remote_nonnull_storage_vol, Buf})}});
+    encode({optional_data, {remote_nonnull_storage_vol, Buf}});
 
 encode({Type, Struct}) ->
     arg(Struct, ?MODULE:Type()).
