@@ -41,20 +41,26 @@
 -export([
     remote_auth_type/0,
     remote_domain_memory_stat/0,
+    remote_domain/0,
     remote_nonnull_domain/0,
+    remote_interface/0,
     remote_nonnull_interface/0,
+    remote_network/0,
     remote_nonnull_network/0,
+    remote_node_device/0,
     remote_nonnull_node_device/0,
+    remote_secret/0,
     remote_nonnull_secret/0,
+    remote_storage_pool/0,
     remote_nonnull_storage_pool/0,
+    remote_storage_vol/0,
     remote_nonnull_storage_vol/0,
+    remote_string/0,
     remote_nonnull_string/0,
     remote_sched_param/0,
-    remote_string/0,
     remote_uuid/0,
     remote_vcpu_info/0,
 
-    remote_domain/0,
     remote_error/0
 ]).
 
@@ -115,15 +121,14 @@ encode({short, Buf}) when is_integer(Buf), Buf =< 16#FFFF ->
 encode({ushort, Buf}) when is_integer(Buf), Buf =< 16#FFFF ->
     encode({int, Buf});
 
+encode({optional, Buf}) ->
+    list_to_binary([<<1:32>>, Buf]);
+
 %%
 %% libivrt composite types
 %%
 encode({remote_uuid, Buf}) when is_binary(Buf), byte_size(Buf) == ?VIR_UUID_BUFLEN ->
     encode({opaque, Buf});
-encode({Type, Buf}) when Type == remote_string; Type == remote_nonnull_string ->
-    encode({string, Buf});
-encode({remote_auth_type, Buf}) ->
-    encode({uint, Buf});
 
 encode({Type, Struct}) ->
     verx_util:arg(Struct, ?MODULE:Type()).
@@ -163,10 +168,6 @@ decode({ushort, Buf}) when is_binary(Buf) ->
 % XXX How to handle the padding?? Look at the padding rules for structs
 decode({remote_uuid, <<Buf/binary>>}) ->
     decode({opaque, {Buf, ?VIR_UUID_BUFLEN}});
-decode({Type, <<Buf/binary>>}) when Type == remote_string; Type == remote_nonnull_string ->
-    decode({string, Buf});
-decode({remote_auth_type, <<Buf/binary>>}) ->
-    decode({uint, Buf});
 
 decode({Type, <<Buf/binary>>}) ->
     struct(Buf, ?MODULE:Type()).
@@ -270,77 +271,119 @@ pad(N) -> (4 - (N rem 4)) * 8.
 
 
 %% Composite types
+optional(Struct) ->
+    [<<1:32>>] ++ Struct.
+
 remote_uuid() ->
-    [ {uuid, {opaque, ?VIR_UUID_BUFLEN}} ].
+    [
+        {uuid, {opaque, ?VIR_UUID_BUFLEN}}
+    ].
 
 remote_string() ->
-    remote_nonnull_string().
+    optional(remote_nonnull_string()).
 remote_nonnull_string() ->
-    [ {string, string} ].
+    [
+        {string, string}
+    ].
 
 remote_auth_type() ->
-    [ {type, uint} ].
+    [
+        {type, uint}
+    ].
 
 remote_domain_memory_stat() ->
-    [ {tag, int},
-        {val, uhyper} ].
+    [
+        {tag, int},
+        {val, uhyper}
+    ].
 
 remote_domain() ->
-    remote_nonnull_domain().
+    optional(remote_nonnull_domain()).
 remote_nonnull_domain() ->
-    [ {name, remote_nonnull_string},
-        {uuid, remote_uuid},
-        {id, int} ].
-
-remote_nonnull_interface() ->
-    [ {name, remote_nonnull_string},
-        {mac, remote_nonnull_string} ].
-
-remote_nonnull_network() ->
-    [ {name, remote_nonnull_string},
-        {uuid, remote_uuid} ].
-
-remote_nonnull_node_device() ->
-    [ {name, remote_nonnull_string} ].
-
-remote_nonnull_secret() ->
-    [ {uuid, remote_uuid},
-        {usageType, int},
-        {usageID, remote_nonnull_string} ].
-
-remote_nonnull_storage_pool() ->
-    [ {name, remote_nonnull_string},
-        {uuid, remote_uuid} ].
-
-remote_nonnull_storage_vol() ->
-    [ {pool, remote_nonnull_string},
+    [
         {name, remote_nonnull_string},
-        {key, remote_nonnull_string} ].
+        {uuid, remote_uuid},
+        {id, int}
+    ].
+
+remote_interface() ->
+    optional(remote_nonnull_interface()).
+remote_nonnull_interface() ->
+    [
+        {name, remote_nonnull_string},
+        {mac, remote_nonnull_string}
+    ].
+
+remote_network() ->
+    optional(remote_nonnull_network()).
+remote_nonnull_network() ->
+    [
+        {name, remote_nonnull_string},
+        {uuid, remote_uuid}
+    ].
+
+remote_node_device() ->
+    optional(remote_nonnull_node_device()).
+remote_nonnull_node_device() ->
+    [
+        {name, remote_nonnull_string}
+    ].
+
+remote_secret() ->
+    optional(remote_nonnull_secret()).
+remote_nonnull_secret() ->
+    [
+        {uuid, remote_uuid},
+        {usageType, int},
+        {usageID, remote_nonnull_string}
+    ].
+
+remote_storage_pool() ->
+    optional(remote_nonnull_storage_pool()).
+remote_nonnull_storage_pool() ->
+    [
+        {name, remote_nonnull_string},
+        {uuid, remote_uuid}
+    ].
+
+remote_storage_vol() ->
+    optional(remote_nonnull_storage_vol()).
+remote_nonnull_storage_vol() ->
+    [
+        {pool, remote_nonnull_string},
+        {name, remote_nonnull_string},
+        {key, remote_nonnull_string}
+    ].
 
 remote_sched_param() ->
-    [ {field, remote_nonnull_string},
-        {value, remote_sched_param_value} ].
+    [
+        {field, remote_nonnull_string},
+        {value, remote_sched_param_value}
+    ].
 
 remote_vcpu_info() ->
-    [ {number, uint},
+    [
+        {number, uint},
         {state, int},
         {cpu_time, uhyper},
-        {cpu, int} ].
+        {cpu, int}
+    ].
 
 remote_error() ->
-    [ {code, int},
+    [
+        {code, int},
         {domain, int},
         {message, remote_string},
         {level, int},
         <<0:32>>, % XXX padding
         {dom, remote_domain}
 
-% XXX deal with truncated structs
-%       {str1, remote_string},
-%       {str2, remote_string},
-%       {str3, remote_string},
-%       {int1, int},
-%       {int2, int},
-%       {net, remote_network}
+        % XXX deal with truncated structs
+        %       {str1, remote_string},
+        %       {str2, remote_string},
+        %       {str3, remote_string},
+        %       {int1, int},
+        %       {int2, int},
+        %       {net, remote_network}
     ].
 
