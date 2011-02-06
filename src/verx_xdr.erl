@@ -39,33 +39,21 @@
         struct/2
     ]).
 -export([
-    remote_auth_type/0,
     remote_domain_memory_stat/0,
-    remote_domain/0,
     remote_nonnull_domain/0,
-    remote_interface/0,
     remote_nonnull_interface/0,
-    remote_network/0,
     remote_nonnull_network/0,
-    remote_node_device/0,
     remote_nonnull_node_device/0,
-    remote_secret/0,
     remote_nonnull_secret/0,
-    remote_storage_pool/0,
     remote_nonnull_storage_pool/0,
-    remote_storage_vol/0,
     remote_nonnull_storage_vol/0,
-    remote_string/0,
-    remote_nonnull_string/0,
     remote_sched_param/0,
-    remote_uuid/0,
     remote_vcpu_info/0,
 
     remote_error/0
 ]).
 
 -define(STRUCT, [
-    remote_auth_type,
     remote_domain_memory_stat,
     remote_nonnull_domain,
     remote_nonnull_interface,
@@ -74,10 +62,7 @@
     remote_nonnull_secret,
     remote_nonnull_storage_pool,
     remote_nonnull_storage_vol,
-    remote_nonnull_string,
     remote_sched_param,
-    remote_string,
-    remote_uuid,
     remote_vcpu_info,
 
     remote_domain,
@@ -126,14 +111,48 @@ encode({boolean, true}) ->
 encode({boolean, false}) ->
     <<0:32>>;
 
-encode({optional, Buf}) ->
-    list_to_binary([<<1:32>>, Buf]);
+encode({optional_data, {true, Buf}}) ->
+    list_to_binary([
+        encode({boolean, true}),
+        Buf
+    ]);
+encode({optional_data, {false, _Buf}}) ->
+    encode({boolean, false});
 
 %%
 %% libivrt composite types
 %%
+encode({remote_auth_type, N}) when is_integer(N) ->
+    encode({uint, N});
+
 encode({remote_uuid, Buf}) when is_binary(Buf), byte_size(Buf) == ?VIR_UUID_BUFLEN ->
     encode({opaque, Buf});
+
+encode({remote_string, Buf}) ->
+    encode({optional, {true, encode({remote_nonnull_string, Buf})}});
+encode({remote_nonnull_string, Buf}) ->
+    encode({string, Buf});
+
+encode({remote_domain, Buf}) ->
+    encode({optional, {true, encode({remote_nonnull_domain, Buf})}});
+
+encode({remote_interface, Buf}) ->
+    encode({optional, {true, encode({remote_nonnull_interface, Buf})}});
+
+encode({remote_network, Buf}) ->
+    encode({optional, {true, encode({remote_nonnull_network, Buf})}});
+
+encode({remote_node_device, Buf}) ->
+    encode({optional, {true, encode({remote_nonnull_device, Buf})}});
+
+encode({remote_secret, Buf}) ->
+    encode({optional, {true, encode({remote_nonnull_secret, Buf})}});
+
+encode({remote_storage_pool, Buf}) ->
+    encode({optional, {true, encode({remote_nonnull_storage_pool, Buf})}});
+
+encode({remote_storage_vol, Buf}) ->
+    encode({optional, {true, encode({remote_nonnull_storage_vol, Buf})}});
 
 encode({Type, Struct}) ->
     verx_util:arg(Struct, ?MODULE:Type()).
@@ -170,14 +189,48 @@ decode({boolean, <<1:32, Buf/binary>>}) ->
 decode({boolean, <<0:32, Buf/binary>>}) ->
     {false, Buf};
 
+decode({optional_data, {Type, Buf}}) ->
+    case decode({boolean, Buf}) of
+        {true, Buf1} ->
+            decode({Type, Buf1});
+        {false, Buf1} ->
+            {<<>>, Buf1}
+    end;
+
 %%
 %% libivrt composite types
 %%
+decode({remote_auth_type, <<Buf/binary>>}) ->
+    decode({uint, Buf});
 
-% XXX Included structures seem to begin with <<1:32>>. Why?
-% XXX How to handle the padding?? Look at the padding rules for structs
 decode({remote_uuid, <<Buf/binary>>}) ->
     decode({opaque, {Buf, ?VIR_UUID_BUFLEN}});
+
+decode({remote_string, Buf}) ->
+    decode({optional_data, {remote_nonnull_string, Buf}});
+decode({remote_nonnull_string, Buf}) ->
+    decode({string, Buf});
+
+decode({remote_domain, Buf}) ->
+    decode({optional_data, {remote_nonnull_domain, Buf}});
+
+decode({remote_interface, Buf}) ->
+    decode({optional_data, {remote_nonnull_interface, Buf}});
+
+decode({remote_network, Buf}) ->
+    decode({optional_data, {remote_nonnull_network, Buf}});
+
+decode({remote_node_device, Buf}) ->
+    decode({optional_data, {remote_nonnull_node_device, Buf}});
+
+decode({remote_secret, Buf}) ->
+    decode({optional_data, {remote_nonnull_secret, Buf}});
+
+decode({remote_storage_pool, Buf}) ->
+    decode({optional_data, {remote_nonnull_storage_pool, Buf}});
+
+decode({remote_storage_vol, Buf}) ->
+    decode({optional_data, {remote_nonnull_storage_vol, Buf}});
 
 decode({Type, <<Buf/binary>>}) ->
     struct(Buf, ?MODULE:Type()).
@@ -269,34 +322,12 @@ pad(N) -> (4 - (N rem 4)) * 8.
 
 
 %% Composite types
-optional(Struct) ->
-    [<<1:32>>] ++ Struct.
-
-remote_uuid() ->
-    [
-        {uuid, {opaque, ?VIR_UUID_BUFLEN}}
-    ].
-
-remote_string() ->
-    optional(remote_nonnull_string()).
-remote_nonnull_string() ->
-    [
-        {string, string}
-    ].
-
-remote_auth_type() ->
-    [
-        {type, uint}
-    ].
-
 remote_domain_memory_stat() ->
     [
         {tag, int},
         {val, uhyper}
     ].
 
-remote_domain() ->
-    optional(remote_nonnull_domain()).
 remote_nonnull_domain() ->
     [
         {name, remote_nonnull_string},
@@ -304,31 +335,23 @@ remote_nonnull_domain() ->
         {id, int}
     ].
 
-remote_interface() ->
-    optional(remote_nonnull_interface()).
 remote_nonnull_interface() ->
     [
         {name, remote_nonnull_string},
         {mac, remote_nonnull_string}
     ].
 
-remote_network() ->
-    optional(remote_nonnull_network()).
 remote_nonnull_network() ->
     [
         {name, remote_nonnull_string},
         {uuid, remote_uuid}
     ].
 
-remote_node_device() ->
-    optional(remote_nonnull_node_device()).
 remote_nonnull_node_device() ->
     [
         {name, remote_nonnull_string}
     ].
 
-remote_secret() ->
-    optional(remote_nonnull_secret()).
 remote_nonnull_secret() ->
     [
         {uuid, remote_uuid},
@@ -336,16 +359,12 @@ remote_nonnull_secret() ->
         {usageID, remote_nonnull_string}
     ].
 
-remote_storage_pool() ->
-    optional(remote_nonnull_storage_pool()).
 remote_nonnull_storage_pool() ->
     [
         {name, remote_nonnull_string},
         {uuid, remote_uuid}
     ].
 
-remote_storage_vol() ->
-    optional(remote_nonnull_storage_vol()).
 remote_nonnull_storage_vol() ->
     [
         {pool, remote_nonnull_string},
@@ -373,15 +392,13 @@ remote_error() ->
         {domain, int},
         {message, remote_string},
         {level, int},
-        <<0:32>>, % XXX padding
-        {dom, remote_domain}
+        {dom, remote_domain},
 
-        % XXX deal with truncated structs
-        %       {str1, remote_string},
-        %       {str2, remote_string},
-        %       {str3, remote_string},
-        %       {int1, int},
-        %       {int2, int},
-        %       {net, remote_network}
+        {str1, remote_string},
+        {str2, remote_string},
+        {str3, remote_string},
+        {int1, int},
+        {int2, int},
+        {net, remote_network}
     ].
 
