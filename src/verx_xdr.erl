@@ -193,7 +193,7 @@ struct1(Buf, [Field|Struct], Acc) when is_binary(Field) ->
     Len = bit_size(Field),
     <<Field:Len/bits, Rest/binary>> = Buf,
     struct1(Rest, Struct, Acc);
-struct1(Buf, [{Field, {Type, Len}}|Struct], Acc) when Type == char; Type == uchar; Type == opaque ->
+struct1(Buf, [{Field, {Type, Len}}|Struct], Acc) ->
     try verx_xdr:decode({Type, {Buf, Len}}) of
         {Val, <<>>} ->
             struct1(<<>>, [], [{Field, Val}|Acc]);
