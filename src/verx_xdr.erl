@@ -155,7 +155,7 @@ encode({remote_storage_vol, Buf}) ->
     encode({optional, {true, encode({remote_nonnull_storage_vol, Buf})}});
 
 encode({Type, Struct}) ->
-    verx_util:arg(Struct, ?MODULE:Type()).
+    arg(Struct, ?MODULE:Type()).
 
 
 %%-------------------------------------------------------------------------
