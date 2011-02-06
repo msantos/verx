@@ -65,7 +65,7 @@
 %%-------------------------------------------------------------------------
 call(Ref, Proc) ->
     call(Ref, Proc, []).
-call(Ref, Proc, Arg) when is_atom(Proc), is_list(Arg) ->
+call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
     gen_server:call(Ref, {call, Proc, Arg}).
 
 info(Ref) ->
