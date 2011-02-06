@@ -121,6 +121,11 @@ encode({short, Buf}) when is_integer(Buf), Buf =< 16#FFFF ->
 encode({ushort, Buf}) when is_integer(Buf), Buf =< 16#FFFF ->
     encode({int, Buf});
 
+encode({boolean, true}) ->
+    <<1:32>>;
+encode({boolean, false}) ->
+    <<0:32>>;
+
 encode({optional, Buf}) ->
     list_to_binary([<<1:32>>, Buf]);
 
@@ -156,6 +161,11 @@ decode({short, Buf}) when is_binary(Buf) ->
     decode({int, Buf});
 decode({ushort, Buf}) when is_binary(Buf) ->
     decode({int, Buf});
+
+decode({boolean, <<1:32, Buf/binary>>}) ->
+    {true, Buf};
+decode({boolean, <<0:32, Buf/binary>>}) ->
+    {false, Buf};
 
 %%
 %% libivrt composite types
