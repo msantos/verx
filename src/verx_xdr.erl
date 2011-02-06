@@ -196,17 +196,7 @@ struct1(Buf, [{Field, {Type, Len}}|Struct], Acc) when Type == char; Type == ucha
             {error, Type, lists:reverse(Acc), Buf}
     end;
 struct1(Buf, [{Field, Type}|Struct], Acc) ->
-    % XXX
-    Bytes = case lists:member(Type, ?STRUCT) of
-        true when binary_part(Buf, {0,4}) == <<0,0,0,1>> ->
-            <<1:32, Buf1/binary>> = Buf,
-            Buf1;
-        true -> Buf;
-        false ->
-            Buf
-    end,
-
-    try verx_xdr:decode({Type, Bytes}) of
+    try verx_xdr:decode({Type, Buf}) of
         {Val, <<>>} ->
             struct1(<<>>, [], [{Field, Val}|Acc]);
         {Val, Rest} ->
