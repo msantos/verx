@@ -272,48 +272,61 @@ pad(N) -> (4 - (N rem 4)) * 8.
 %% Composite types
 remote_uuid() ->
     [ {uuid, {opaque, ?VIR_UUID_BUFLEN}} ].
+
 remote_string() ->
     remote_nonnull_string().
 remote_nonnull_string() ->
     [ {string, string} ].
+
 remote_auth_type() ->
     [ {type, uint} ].
+
 remote_domain_memory_stat() ->
     [ {tag, int},
         {val, uhyper} ].
+
 remote_domain() ->
     remote_nonnull_domain().
 remote_nonnull_domain() ->
     [ {name, remote_nonnull_string},
         {uuid, remote_uuid},
         {id, int} ].
+
 remote_nonnull_interface() ->
     [ {name, remote_nonnull_string},
         {mac, remote_nonnull_string} ].
+
 remote_nonnull_network() ->
     [ {name, remote_nonnull_string},
         {uuid, remote_uuid} ].
+
 remote_nonnull_node_device() ->
     [ {name, remote_nonnull_string} ].
+
 remote_nonnull_secret() ->
     [ {uuid, remote_uuid},
         {usageType, int},
         {usageID, remote_nonnull_string} ].
+
 remote_nonnull_storage_pool() ->
     [ {name, remote_nonnull_string},
         {uuid, remote_uuid} ].
+
 remote_nonnull_storage_vol() ->
     [ {pool, remote_nonnull_string},
         {name, remote_nonnull_string},
         {key, remote_nonnull_string} ].
+
 remote_sched_param() ->
     [ {field, remote_nonnull_string},
         {value, remote_sched_param_value} ].
+
 remote_vcpu_info() ->
     [ {number, uint},
         {state, int},
         {cpu_time, uhyper},
         {cpu, int} ].
+
 remote_error() ->
     [ {code, int},
         {domain, int},
