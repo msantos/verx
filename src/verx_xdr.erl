@@ -127,9 +127,6 @@ encode({optional, Buf}) ->
 %%
 %% libivrt composite types
 %%
-encode({remote_uuid, Buf}) when is_binary(Buf), byte_size(Buf) == ?VIR_UUID_BUFLEN ->
-    encode({opaque, Buf});
-
 encode({Type, Struct}) ->
     verx_util:arg(Struct, ?MODULE:Type()).
 
@@ -166,9 +163,6 @@ decode({ushort, Buf}) when is_binary(Buf) ->
 
 % XXX Included structures seem to begin with <<1:32>>. Why?
 % XXX How to handle the padding?? Look at the padding rules for structs
-decode({remote_uuid, <<Buf/binary>>}) ->
-    decode({opaque, {Buf, ?VIR_UUID_BUFLEN}});
-
 decode({Type, <<Buf/binary>>}) ->
     struct(Buf, ?MODULE:Type()).
 
@@ -183,8 +177,8 @@ struct1(Buf, [Field|Struct], Acc) when is_binary(Field) ->
     Len = bit_size(Field),
     <<Field:Len/bits, Rest/binary>> = Buf,
     struct1(Rest, Struct, Acc);
-struct1(Buf, [{Field, {Type, Len}}|Struct], Acc) when Type == char; Type == uchar ->
-    try verx_xdr:decode({char, {Buf, Len}}) of
+struct1(Buf, [{Field, {Type, Len}}|Struct], Acc) when Type == char; Type == uchar; Type == opaque ->
+    try verx_xdr:decode({Type, {Buf, Len}}) of
         {Val, <<>>} ->
             struct1(<<>>, [], [{Field, Val}|Acc]);
         {Val, Rest} ->
