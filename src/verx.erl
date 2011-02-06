@@ -65,7 +65,10 @@
 %%-------------------------------------------------------------------------
 call(Ref, Proc) ->
     call(Ref, Proc, []).
-call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
+call(Ref, Proc, Arg) when is_list(Arg) ->
+    Bin = list_to_binary([ verx_xdr:encode(N) || N <- Arg ]),
+    call(Ref, Proc, Bin);
+call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_binary(Arg) ->
     gen_server:call(Ref, {call, Proc, Arg}).
 
 info(Ref) ->
@@ -75,14 +78,14 @@ info(Ref, node) ->
     call(Ref, node_get_info);
 info(Ref, {domain, UUID}) when is_binary(UUID) ->
     call(Ref, domain_get_info, [
-            verx_xdr:encode({string, ""}),  % name
-            UUID,                           % UUID
-            verx_xdr:encode({int, 0})       % id
+            {string, ""},               % name
+            {remote_uuid, UUID},        % UUID
+            {int, 0}                    % id
         ]).
 
 id(Ref, N) ->
     call(Ref, domain_lookup_by_id, [
-            verx_xdr:encode({int, N})       % domain id
+            {int, N}                    % domain id
         ]).
 
 capabilities(Ref) ->
@@ -93,22 +96,24 @@ create(Ref) ->
 create(Ref, Path) ->
     {ok, Bin} = file:read_file(Path),
     call(Ref, domain_create_xml, [
-            verx_xdr:encode({string, Bin}), % XML
-            verx_xdr:encode({int, 0})       % flags
+            {remote_nonnull_string, Bin},   % XML
+            {int, 0}                        % flags
         ]).
 
 list_domains(Ref) ->
     list_domains(Ref, 10).
 list_domains(Ref, N) ->
     call(Ref, list_domains, [
-            verx_xdr:encode({int, N})       % number of domains
+            {int, N}                    % number of domains
         ]).
 
 destroy(Ref, UUID) when is_binary(UUID) ->
     call(Ref, domain_destroy, [
-            verx_xdr:encode({string, ""}),  % UUID, not checked?
-            UUID,                           % UUID, binary
-            verx_xdr:encode({int, 0})       % id, not checked
+            {remote_domain, [
+                {remote_nonnull_string, ""},    % name
+                {remote_uuid, UUID},            % UUID, binary
+                {int, 0}                        % id
+            ]}
         ]).
 
 
@@ -141,8 +146,8 @@ handle_call({call, Proc, []}, _From, #state{s = S} = State) ->
     Res = verx_rpc:call(S, Proc),
     Reply = verx_rpc:response(Proc, Res),
     {reply, Reply, State};
-handle_call({call, Proc, Arg}, _From, #state{s = S} = State) ->
-    Res = verx_rpc:call(S, Proc, list_to_binary(Arg)),
+handle_call({call, Proc, Arg}, _From, #state{s = S} = State) when is_binary(Arg) ->
+    Res = verx_rpc:call(S, Proc, Arg),
     Reply = verx_rpc:response(Proc, Res),
     {reply, Reply, State}.
 
