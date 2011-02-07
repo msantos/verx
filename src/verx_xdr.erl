@@ -245,18 +245,8 @@ struct1(Buf, [Field|Struct], Acc) when is_binary(Field) ->
     Len = bit_size(Field),
     <<Field:Len/bits, Rest/binary>> = Buf,
     struct1(Rest, Struct, Acc);
-struct1(Buf, [{Field, {Type, Len}}|Struct], Acc) ->
-    try verx_xdr:decode({Type, {Buf, Len}}) of
-        {Val, <<>>} ->
-            struct1(<<>>, [], [{Field, Val}|Acc]);
-        {Val, Rest} ->
-            struct1(Rest, Struct, [{Field, Val}|Acc])
-    catch
-        error:_ ->
-            {error, Type, lists:reverse(Acc), Buf}
-    end;
 struct1(Buf, [{Field, Type}|Struct], Acc) ->
-    try verx_xdr:decode({Type, Buf}) of
+    try struct_decode(Type, Buf) of
         {Val, <<>>} ->
             struct1(<<>>, [], [{Field, Val}|Acc]);
         {Val, Rest} ->
@@ -266,9 +256,13 @@ struct1(Buf, [{Field, Type}|Struct], Acc) ->
             Error
     catch
         error:_ ->
-            io:format("~p~n", [erlang:get_stacktrace()]),
             {error, Field, lists:reverse(Acc), Buf}
     end.
+
+struct_decode({Type, Len}, Buf) ->
+    verx_xdr:decode({Type, {Buf, Len}});
+struct_decode(Type, Buf) ->
+    verx_xdr:decode({Type, Buf}).
 
 
 % Encode a proplist representation of a struct as an
