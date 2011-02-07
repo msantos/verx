@@ -28,7 +28,7 @@
 %% LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 %% ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 %% POSSIBILITY OF SUCH DAMAGE.
--module(verx_arg).
+-module(verx_args).
 -export([
      domain_lookup_by_uuid/1,
      domain_lookup_by_uuid/0,

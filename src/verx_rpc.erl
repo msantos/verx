@@ -154,7 +154,7 @@ response(Fun, Header, Buf) ->
     response(Fun, {Header, Buf}).
 
 response(Fun, {#remote_message_header{status = ok}, Buf}) ->
-    case verx_proto:decode(Fun, Buf) of
+    case verx_ret:decode(Fun, Buf) of
         {error, unsupported} -> {ok, void};
         N -> {ok, N}
     end;

@@ -6,8 +6,8 @@
         verx,
         verx_rpc,
         verx_xdr,
-        verx_arg,
-        verx_proto,
+        verx_args,
+        verx_ret,
         verx_constant,
         verx_util,
         verx_err
