@@ -169,7 +169,7 @@ response(_Fun, {#remote_message_header{status = error}, Buf}) ->
 message(#remote_message_header{} = Hdr, Payload) ->
     message(header(Hdr), Payload);
 message(Hdr, Payload) when is_binary(Hdr), is_binary(Payload) ->
-    Len = 4 + byte_size(Hdr) + byte_size(Payload),
+    Len = 4 + 24 + byte_size(Payload),
     <<Len:32, Hdr:24/bytes, Payload/bytes>>.
 
 %% Message header
