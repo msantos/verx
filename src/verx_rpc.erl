@@ -41,7 +41,7 @@
     encode/1,
     decode/1,
 
-    response/2, response/3  % XXX where should this go?
+    response/2, response/3
     ]).
 
 -define(SOCK_PATH, "/var/run/libvirt/libvirt-sock").
