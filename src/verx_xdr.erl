@@ -232,7 +232,8 @@ decode({remote_storage_vol, Buf}) ->
     decode({optional_data, {remote_nonnull_storage_vol, Buf}});
 
 decode({Type, <<Buf/binary>>}) ->
-    struct(Buf, ?MODULE:Type()).
+    {Res, Bin} = struct(Buf, ?MODULE:Type()),
+    {{Type, Res}, Bin}.
 
 
 % Decode an XDR binary into a proplist
