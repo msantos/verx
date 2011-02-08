@@ -257,7 +257,7 @@ struct1(Buf, [{Field, Type}|Struct], Acc) ->
             Error
     catch
         error:_ ->
-            {error, Field, lists:reverse(Acc), Buf}
+            {error, {Type, Field}, lists:reverse(Acc), Buf}
     end.
 
 struct_decode({Type, Len}, Buf) ->
