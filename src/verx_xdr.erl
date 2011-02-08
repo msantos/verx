@@ -249,9 +249,9 @@ struct1(Buf, [Field|Struct], Acc) when is_binary(Field) ->
 struct1(Buf, [{Field, Type}|Struct], Acc) ->
     try struct_decode(Type, Buf) of
         {Val, <<>>} ->
-            struct1(<<>>, [], [{Field, Val}|Acc]);
+            struct1(<<>>, [], [{Type, Val}|Acc]);
         {Val, Rest} ->
-            struct1(Rest, Struct, [{Field, Val}|Acc]);
+            struct1(Rest, Struct, [{Type, Val}|Acc]);
         % Can be returned by recursively included entries
         {error, _Field, _Acc, _Buf} = Error ->
             Error
