@@ -29,39 +29,48 @@
 %% ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 %% POSSIBILITY OF SUCH DAMAGE.
 -module(verx_ret).
--export([decode/2]).
+-export([decode/2, param/1]).
+-export([struct_to_proplist/1]).
 -include("verx.hrl").
 
-decode(supports_feature, Buf) ->
-    struct(Buf, [
+decode(Proc, Buf) ->
+    case param(Proc) of
+        {error, _} = Err ->
+            Err;
+        Args ->
+            struct_to_proplist({Buf, Args})
+    end.
+
+param(supports_feature) ->
+    [
          {supported, int}
-        ]);
-decode(get_type, Buf) ->
-    struct(Buf, [
+    ];
+param(get_type) ->
+    [
          {type, remote_nonnull_string}
-        ]);
-decode(get_version, Buf) ->
-    struct(Buf, [
+    ];
+param(get_version) ->
+    [
          {hv_ver, hyper}
-        ]);
-decode(get_lib_version, Buf) ->
-    struct(Buf, [
+    ];
+param(get_lib_version) ->
+    [
          {lib_ver, hyper}
-        ]);
-decode(get_hostname, Buf) ->
-    struct(Buf, [
+    ];
+param(get_hostname) ->
+    [
          {hostname, remote_nonnull_string}
-        ]);
-decode(get_uri, Buf) ->
-    struct(Buf, [
+    ];
+param(get_uri) ->
+    [
          {uri, remote_nonnull_string}
-        ]);
-decode(get_max_vcpus, Buf) ->
-    struct(Buf, [
+    ];
+param(get_max_vcpus) ->
+    [
          {max_vcpus, int}
-        ]);
-decode(node_get_info, Buf) ->
-    struct(Buf, [
+    ];
+param(node_get_info) ->
+    [
          {model, {char, 32}},
          {memory, hyper},
          {cpus, int},
@@ -70,38 +79,38 @@ decode(node_get_info, Buf) ->
          {sockets, int},
          {cores, int},
          {threads, int}
-        ]);
-decode(get_capabilities, Buf) ->
-    struct(Buf, [
+    ];
+param(get_capabilities) ->
+    [
          {capabilities, remote_nonnull_string}
-        ]);
-decode(node_get_cells_free_memory, Buf) ->
-    struct(Buf, [
+    ];
+param(node_get_cells_free_memory) ->
+    [
          {freeMems, hyper}
-        ]);
-decode(node_get_free_memory, Buf) ->
-    struct(Buf, [
+    ];
+param(node_get_free_memory) ->
+    [
          {freeMem, hyper}
-        ]);
-decode(domain_get_scheduler_type, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_get_scheduler_type) ->
+    [
          {type, remote_nonnull_string},
          {nparams, int}
-        ]);
-decode(domain_get_scheduler_parameters, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_get_scheduler_parameters) ->
+    [
          {params, remote_sched_param}
-        ]);
-decode(domain_block_stats, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_block_stats) ->
+    [
          {rd_req, hyper},
          {rd_bytes, hyper},
          {wr_req, hyper},
          {wr_bytes, hyper},
          {errs, hyper}
-        ]);
-decode(domain_interface_stats, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_interface_stats) ->
+    [
          {rx_bytes, hyper},
          {rx_packets, hyper},
          {rx_errs, hyper},
@@ -110,422 +119,434 @@ decode(domain_interface_stats, Buf) ->
          {tx_packets, hyper},
          {tx_errs, hyper},
          {tx_drop, hyper}
-        ]);
-decode(domain_memory_stats, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_memory_stats) ->
+    [
          {stats, remote_domain_memory_stat}
-        ]);
-decode(domain_block_peek, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_block_peek) ->
+    [
          {buffer, opaque}
-        ]);
-decode(domain_memory_peek, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_memory_peek) ->
+    [
          {buffer, opaque}
-        ]);
-decode(list_domains, Buf) ->
-    struct(Buf, [
+    ];
+param(list_domains) ->
+    [
          {ids, int}
-        ]);
-decode(num_of_domains, Buf) ->
-    struct(Buf, [
+    ];
+param(num_of_domains) ->
+    [
          {num, int}
-        ]);
-decode(domain_create_xml, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_create_xml) ->
+    [
          {dom, remote_nonnull_domain}
-        ]);
-decode(domain_lookup_by_id, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_lookup_by_id) ->
+    [
          {dom, remote_nonnull_domain}
-        ]);
-decode(domain_lookup_by_uuid, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_lookup_by_uuid) ->
+    [
          {dom, remote_nonnull_domain}
-        ]);
-decode(domain_lookup_by_name, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_lookup_by_name) ->
+    [
          {dom, remote_nonnull_domain}
-        ]);
-decode(domain_get_os_type, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_get_os_type) ->
+    [
          {type, remote_nonnull_string}
-        ]);
-decode(domain_get_max_memory, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_get_max_memory) ->
+    [
          {memory, uhyper}
-        ]);
-decode(domain_get_info, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_get_info) ->
+    [
          {state, {uchar, 1}},
          {max_mem, uhyper},
          {memory, uhyper},
          {nr_virt_cpu, ushort},
          {cpu_time, uhyper}
-        ]);
-decode(domain_dump_xml, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_dump_xml) ->
+    [
          {xml, remote_nonnull_string}
-        ]);
-decode(domain_migrate_prepare, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_migrate_prepare) ->
+    [
          {cookie, opaque},
          {uri_out, remote_string}
-        ]);
-decode(domain_migrate_finish, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_migrate_finish) ->
+    [
          {ddom, remote_nonnull_domain}
-        ]);
-decode(list_defined_domains, Buf) ->
-    struct(Buf, [
+    ];
+param(list_defined_domains) ->
+    [
          {names, remote_nonnull_string}
-        ]);
-decode(num_of_defined_domains, Buf) ->
-    struct(Buf, [
+    ];
+param(num_of_defined_domains) ->
+    [
          {num, int}
-        ]);
-decode(domain_define_xml, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_define_xml) ->
+    [
          {dom, remote_nonnull_domain}
-        ]);
-decode(domain_get_vcpus, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_get_vcpus) ->
+    [
          {info, remote_vcpu_info},
          {cpumaps, opaque}
-        ]);
-decode(domain_get_max_vcpus, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_get_max_vcpus) ->
+    [
          {num, int}
-        ]);
-decode(domain_get_security_label, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_get_security_label) ->
+    [
          {label, char},
          {enforcing, int}
-        ]);
-decode(node_get_security_model, Buf) ->
-    struct(Buf, [
+    ];
+param(node_get_security_model) ->
+    [
          {model, char},
          {doi, char}
-        ]);
-decode(domain_get_autostart, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_get_autostart) ->
+    [
          {autostart, int}
-        ]);
-decode(num_of_networks, Buf) ->
-    struct(Buf, [
+    ];
+param(num_of_networks) ->
+    [
          {num, int}
-        ]);
-decode(list_networks, Buf) ->
-    struct(Buf, [
+    ];
+param(list_networks) ->
+    [
          {names, remote_nonnull_string}
-        ]);
-decode(num_of_defined_networks, Buf) ->
-    struct(Buf, [
+    ];
+param(num_of_defined_networks) ->
+    [
          {num, int}
-        ]);
-decode(list_defined_networks, Buf) ->
-    struct(Buf, [
+    ];
+param(list_defined_networks) ->
+    [
          {names, remote_nonnull_string}
-        ]);
-decode(network_lookup_by_uuid, Buf) ->
-    struct(Buf, [
+    ];
+param(network_lookup_by_uuid) ->
+    [
          {net, remote_nonnull_network}
-        ]);
-decode(network_lookup_by_name, Buf) ->
-    struct(Buf, [
+    ];
+param(network_lookup_by_name) ->
+    [
          {net, remote_nonnull_network}
-        ]);
-decode(network_create_xml, Buf) ->
-    struct(Buf, [
+    ];
+param(network_create_xml) ->
+    [
          {net, remote_nonnull_network}
-        ]);
-decode(network_define_xml, Buf) ->
-    struct(Buf, [
+    ];
+param(network_define_xml) ->
+    [
          {net, remote_nonnull_network}
-        ]);
-decode(network_dump_xml, Buf) ->
-    struct(Buf, [
+    ];
+param(network_dump_xml) ->
+    [
          {xml, remote_nonnull_string}
-        ]);
-decode(network_get_bridge_name, Buf) ->
-    struct(Buf, [
+    ];
+param(network_get_bridge_name) ->
+    [
          {name, remote_nonnull_string}
-        ]);
-decode(network_get_autostart, Buf) ->
-    struct(Buf, [
+    ];
+param(network_get_autostart) ->
+    [
          {autostart, int}
-        ]);
-decode(num_of_interfaces, Buf) ->
-    struct(Buf, [
+    ];
+param(num_of_interfaces) ->
+    [
          {num, int}
-        ]);
-decode(list_interfaces, Buf) ->
-    struct(Buf, [
+    ];
+param(list_interfaces) ->
+    [
          {names, remote_nonnull_string}
-        ]);
-decode(num_of_defined_interfaces, Buf) ->
-    struct(Buf, [
+    ];
+param(num_of_defined_interfaces) ->
+    [
          {num, int}
-        ]);
-decode(list_defined_interfaces, Buf) ->
-    struct(Buf, [
+    ];
+param(list_defined_interfaces) ->
+    [
          {names, remote_nonnull_string}
-        ]);
-decode(interface_lookup_by_name, Buf) ->
-    struct(Buf, [
+    ];
+param(interface_lookup_by_name) ->
+    [
          {iface, remote_nonnull_interface}
-        ]);
-decode(interface_lookup_by_mac_string, Buf) ->
-    struct(Buf, [
+    ];
+param(interface_lookup_by_mac_string) ->
+    [
          {iface, remote_nonnull_interface}
-        ]);
-decode(interface_get_xml_desc, Buf) ->
-    struct(Buf, [
+    ];
+param(interface_get_xml_desc) ->
+    [
          {xml, remote_nonnull_string}
-        ]);
-decode(interface_define_xml, Buf) ->
-    struct(Buf, [
+    ];
+param(interface_define_xml) ->
+    [
          {iface, remote_nonnull_interface}
-        ]);
-decode(auth_list, Buf) ->
-    struct(Buf, [
+    ];
+param(auth_list) ->
+    [
          {types, remote_auth_type}
-        ]);
-decode(auth_sasl_init, Buf) ->
-    struct(Buf, [
+    ];
+param(auth_sasl_init) ->
+    [
          {mechlist, remote_nonnull_string}
-        ]);
-decode(auth_sasl_start, Buf) ->
-    struct(Buf, [
+    ];
+param(auth_sasl_start) ->
+    [
          {complete, int},
          {nil, int},
          {data, char}
-        ]);
-decode(auth_sasl_step, Buf) ->
-    struct(Buf, [
+    ];
+param(auth_sasl_step) ->
+    [
          {complete, int},
          {nil, int},
          {data, char}
-        ]);
-decode(auth_polkit, Buf) ->
-    struct(Buf, [
+    ];
+param(auth_polkit) ->
+    [
          {complete, int}
-        ]);
-decode(num_of_storage_pools, Buf) ->
-    struct(Buf, [
+    ];
+param(num_of_storage_pools) ->
+    [
          {num, int}
-        ]);
-decode(list_storage_pools, Buf) ->
-    struct(Buf, [
+    ];
+param(list_storage_pools) ->
+    [
          {names, remote_nonnull_string}
-        ]);
-decode(num_of_defined_storage_pools, Buf) ->
-    struct(Buf, [
+    ];
+param(num_of_defined_storage_pools) ->
+    [
          {num, int}
-        ]);
-decode(list_defined_storage_pools, Buf) ->
-    struct(Buf, [
+    ];
+param(list_defined_storage_pools) ->
+    [
          {names, remote_nonnull_string}
-        ]);
-decode(find_storage_pool_sources, Buf) ->
-    struct(Buf, [
+    ];
+param(find_storage_pool_sources) ->
+    [
          {xml, remote_nonnull_string}
-        ]);
-decode(storage_pool_lookup_by_uuid, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_pool_lookup_by_uuid) ->
+    [
          {pool, remote_nonnull_storage_pool}
-        ]);
-decode(storage_pool_lookup_by_name, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_pool_lookup_by_name) ->
+    [
          {pool, remote_nonnull_storage_pool}
-        ]);
-decode(storage_pool_lookup_by_volume, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_pool_lookup_by_volume) ->
+    [
          {pool, remote_nonnull_storage_pool}
-        ]);
-decode(storage_pool_create_xml, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_pool_create_xml) ->
+    [
          {pool, remote_nonnull_storage_pool}
-        ]);
-decode(storage_pool_define_xml, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_pool_define_xml) ->
+    [
          {pool, remote_nonnull_storage_pool}
-        ]);
-decode(storage_pool_dump_xml, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_pool_dump_xml) ->
+    [
          {xml, remote_nonnull_string}
-        ]);
-decode(storage_pool_get_info, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_pool_get_info) ->
+    [
          {state, {uchar, 1}},
          {capacity, uhyper},
          {allocation, uhyper},
          {available, uhyper}
-        ]);
-decode(storage_pool_get_autostart, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_pool_get_autostart) ->
+    [
          {autostart, int}
-        ]);
-decode(storage_pool_num_of_volumes, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_pool_num_of_volumes) ->
+    [
          {num, int}
-        ]);
-decode(storage_pool_list_volumes, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_pool_list_volumes) ->
+    [
          {names, remote_nonnull_string}
-        ]);
-decode(storage_vol_lookup_by_name, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_vol_lookup_by_name) ->
+    [
          {vol, remote_nonnull_storage_vol}
-        ]);
-decode(storage_vol_lookup_by_key, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_vol_lookup_by_key) ->
+    [
          {vol, remote_nonnull_storage_vol}
-        ]);
-decode(storage_vol_lookup_by_path, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_vol_lookup_by_path) ->
+    [
          {vol, remote_nonnull_storage_vol}
-        ]);
-decode(storage_vol_create_xml, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_vol_create_xml) ->
+    [
          {vol, remote_nonnull_storage_vol}
-        ]);
-decode(storage_vol_create_xml_from, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_vol_create_xml_from) ->
+    [
          {vol, remote_nonnull_storage_vol}
-        ]);
-decode(storage_vol_dump_xml, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_vol_dump_xml) ->
+    [
          {xml, remote_nonnull_string}
-        ]);
-decode(storage_vol_get_info, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_vol_get_info) ->
+    [
          {type, {char, 1}},
          {capacity, uhyper},
          {allocation, uhyper}
-        ]);
-decode(storage_vol_get_path, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_vol_get_path) ->
+    [
          {name, remote_nonnull_string}
-        ]);
-decode(node_num_of_devices, Buf) ->
-    struct(Buf, [
+    ];
+param(node_num_of_devices) ->
+    [
          {num, int}
-        ]);
-decode(node_list_devices, Buf) ->
-    struct(Buf, [
+    ];
+param(node_list_devices) ->
+    [
          {names, remote_nonnull_string}
-        ]);
-decode(node_device_lookup_by_name, Buf) ->
-    struct(Buf, [
+    ];
+param(node_device_lookup_by_name) ->
+    [
          {dev, remote_nonnull_node_device}
-        ]);
-decode(node_device_dump_xml, Buf) ->
-    struct(Buf, [
+    ];
+param(node_device_dump_xml) ->
+    [
          {xml, remote_nonnull_string}
-        ]);
-decode(node_device_get_parent, Buf) ->
-    struct(Buf, [
+    ];
+param(node_device_get_parent) ->
+    [
          {parent, remote_string}
-        ]);
-decode(node_device_num_of_caps, Buf) ->
-    struct(Buf, [
+    ];
+param(node_device_num_of_caps) ->
+    [
          {num, int}
-        ]);
-decode(node_device_list_caps, Buf) ->
-    struct(Buf, [
+    ];
+param(node_device_list_caps) ->
+    [
          {names, remote_nonnull_string}
-        ]);
-decode(node_device_create_xml, Buf) ->
-    struct(Buf, [
+    ];
+param(node_device_create_xml) ->
+    [
          {dev, remote_nonnull_node_device}
-        ]);
-decode(domain_events_register, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_events_register) ->
+    [
          {cb_registered, int}
-        ]);
-decode(domain_events_deregister, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_events_deregister) ->
+    [
          {cb_registered, int}
-        ]);
-decode(domain_xml_from_native, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_xml_from_native) ->
+    [
          {domainXml, remote_nonnull_string}
-        ]);
-decode(domain_xml_to_native, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_xml_to_native) ->
+    [
          {nativeConfig, remote_nonnull_string}
-        ]);
-decode(num_of_secrets, Buf) ->
-    struct(Buf, [
+    ];
+param(num_of_secrets) ->
+    [
          {num, int}
-        ]);
-decode(list_secrets, Buf) ->
-    struct(Buf, [
+    ];
+param(list_secrets) ->
+    [
          {uuids, remote_nonnull_string}
-        ]);
-decode(secret_lookup_by_uuid, Buf) ->
-    struct(Buf, [
+    ];
+param(secret_lookup_by_uuid) ->
+    [
          {secret, remote_nonnull_secret}
-        ]);
-decode(secret_define_xml, Buf) ->
-    struct(Buf, [
+    ];
+param(secret_define_xml) ->
+    [
          {secret, remote_nonnull_secret}
-        ]);
-decode(secret_get_xml_desc, Buf) ->
-    struct(Buf, [
+    ];
+param(secret_get_xml_desc) ->
+    [
          {xml, remote_nonnull_string}
-        ]);
-decode(secret_get_value, Buf) ->
-    struct(Buf, [
+    ];
+param(secret_get_value) ->
+    [
          {value, opaque}
-        ]);
-decode(secret_lookup_by_usage, Buf) ->
-    struct(Buf, [
+    ];
+param(secret_lookup_by_usage) ->
+    [
          {secret, remote_nonnull_secret}
-        ]);
-decode(is_secure, Buf) ->
-    struct(Buf, [
+    ];
+param(is_secure) ->
+    [
          {secure, int}
-        ]);
-decode(domain_is_active, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_is_active) ->
+    [
          {active, int}
-        ]);
-decode(domain_is_persistent, Buf) ->
-    struct(Buf, [
+    ];
+param(domain_is_persistent) ->
+    [
          {persistent, int}
-        ]);
-decode(network_is_active, Buf) ->
-    struct(Buf, [
+    ];
+param(network_is_active) ->
+    [
          {active, int}
-        ]);
-decode(network_is_persistent, Buf) ->
-    struct(Buf, [
+    ];
+param(network_is_persistent) ->
+    [
          {persistent, int}
-        ]);
-decode(storage_pool_is_active, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_pool_is_active) ->
+    [
          {active, int}
-        ]);
-decode(storage_pool_is_persistent, Buf) ->
-    struct(Buf, [
+    ];
+param(storage_pool_is_persistent) ->
+    [
          {persistent, int}
-        ]);
-decode(interface_is_active, Buf) ->
-    struct(Buf, [
+    ];
+param(interface_is_active) ->
+    [
          {active, int}
-        ]);
-decode(cpu_compare, Buf) ->
-    struct(Buf, [
+    ];
+param(cpu_compare) ->
+    [
          {result, int}
-        ]);
+    ];
 
-decode(_, _) ->
+param(_) ->
     {error, unsupported}.
 
 
-struct(Buf, Struct) ->
+struct_to_proplist({Buf, Struct}) ->
     {Values, _Remainder} = verx_xdr:struct(Buf, Struct),
-    Values.
+    proplist(Values, Struct, []).
+
+proplist([], [], Acc) ->
+    lists:reverse(Acc);
+proplist([{Type, [Val|_] = Vals}|T1], [{Field, Type}|T2], Acc) when is_tuple(Val) ->
+    case verx_xdr:struct_to_proplist({Type, Vals}) of
+        {error, _} ->
+            {error, {Type, Field}, lists:reverse(Acc)};
+        L ->
+            proplist(T1, T2, [{Field, L}|Acc])
+    end;
+proplist([{Type, Val}|T1], [{Field, Type}|T2], Acc) ->
+    proplist(T1, T2, [{Field, Val}|Acc]).
 

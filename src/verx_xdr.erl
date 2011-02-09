@@ -39,18 +39,7 @@
         struct/2
     ]).
 -export([
-    remote_domain_memory_stat/0,
-    remote_nonnull_domain/0,
-    remote_nonnull_interface/0,
-    remote_nonnull_network/0,
-    remote_nonnull_node_device/0,
-    remote_nonnull_secret/0,
-    remote_nonnull_storage_pool/0,
-    remote_nonnull_storage_vol/0,
-    remote_sched_param/0,
-    remote_vcpu_info/0,
-
-    remote_error/0
+    param/1, struct_to_proplist/1
 ]).
 
 -define(STRUCT, [
@@ -154,7 +143,7 @@ encode({remote_storage_vol, Buf}) ->
     encode({optional_data, {remote_nonnull_storage_vol, Buf}});
 
 encode({Type, Struct}) ->
-    arg(Struct, ?MODULE:Type()).
+    arg(Struct, param(Type)).
 
 
 %%-------------------------------------------------------------------------
@@ -232,7 +221,7 @@ decode({remote_storage_vol, Buf}) ->
     decode({optional_data, {remote_nonnull_storage_vol, Buf}});
 
 decode({Type, <<Buf/binary>>}) ->
-    {Res, Bin} = struct(Buf, ?MODULE:Type()),
+    {Res, Bin} = struct(Buf, param(Type)),
     {{Type, Res}, Bin}.
 
 
@@ -283,7 +272,7 @@ struct_types([{Type, _Val}|Fields], [{_Field, Type}|Template]) ->
 struct_types([{Type1, Val}|_Fields] = Struct, [{Field, Type2}|_Template]) ->
     case lists:member(Type2, ?STRUCT) of
         true ->
-            struct_types(Struct, ?MODULE:Type2());
+            struct_types(Struct, param(Type2));
         false ->
             {error, {struct, Type1, Val}, {template, Type2, Field}}
     end.
@@ -316,71 +305,71 @@ pad(N) -> (4 - (N rem 4)) * 8.
 
 
 %% Composite types
-remote_domain_memory_stat() ->
+param(remote_domain_memory_stat) ->
     [
         {tag, int},
         {val, uhyper}
-    ].
+    ];
 
-remote_nonnull_domain() ->
+param(remote_nonnull_domain) ->
     [
         {name, remote_nonnull_string},
         {uuid, remote_uuid},
         {id, int}
-    ].
+    ];
 
-remote_nonnull_interface() ->
+param(remote_nonnull_interface) ->
     [
         {name, remote_nonnull_string},
         {mac, remote_nonnull_string}
-    ].
+    ];
 
-remote_nonnull_network() ->
+param(remote_nonnull_network) ->
     [
         {name, remote_nonnull_string},
         {uuid, remote_uuid}
-    ].
+    ];
 
-remote_nonnull_node_device() ->
+param(remote_nonnull_node_device) ->
     [
         {name, remote_nonnull_string}
-    ].
+    ];
 
-remote_nonnull_secret() ->
+param(remote_nonnull_secret) ->
     [
         {uuid, remote_uuid},
         {usageType, int},
         {usageID, remote_nonnull_string}
-    ].
+    ];
 
-remote_nonnull_storage_pool() ->
+param(remote_nonnull_storage_pool) ->
     [
         {name, remote_nonnull_string},
         {uuid, remote_uuid}
-    ].
+    ];
 
-remote_nonnull_storage_vol() ->
+param(remote_nonnull_storage_vol) ->
     [
         {pool, remote_nonnull_string},
         {name, remote_nonnull_string},
         {key, remote_nonnull_string}
-    ].
+    ];
 
-remote_sched_param() ->
+param(remote_sched_param) ->
     [
         {field, remote_nonnull_string},
         {value, remote_sched_param_value}
-    ].
+    ];
 
-remote_vcpu_info() ->
+param(remote_vcpu_info) ->
     [
         {number, uint},
         {state, int},
         {cpu_time, uhyper},
         {cpu, int}
-    ].
+    ];
 
-remote_error() ->
+param(remote_error) ->
     [
         {code, int},
         {domain, int},
@@ -394,5 +383,27 @@ remote_error() ->
         {int1, int},
         {int2, int},
         {net, remote_network}
-    ].
+    ];
+
+param(_) ->
+    {error, unsupported}.
+
+
+struct_to_proplist({Type, Val}) ->
+    case param(Type) of
+        {error, _} = Err -> Err;
+        N -> proplist(Val, N, [])
+    end.
+
+proplist([], [], Acc) ->
+    lists:reverse(Acc);
+proplist([{Type, [Val|_] = Vals}|T1], [{Field, Type}|T2], Acc) when is_tuple(Val) ->
+    case struct_to_proplist({Type, Vals}) of
+        {error, _} ->
+            {error, {Type, Field}, lists:reverse(Acc)};
+        L ->
+            proplist(T1, T2, [{Field, L}|Acc])
+    end;
+proplist([{Type, Val}|T1], [{Field, Type}|T2], Acc) ->
+    proplist(T1, T2, [{Field, Val}|Acc]).
 
