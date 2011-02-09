@@ -85,9 +85,9 @@ encode({int, N}) when is_integer(N) ->
 encode({uint, N}) when is_integer(N) ->
     <<N:4/unsigned-big-integer-unit:8>>;
 encode({hyper, N}) when is_integer(N) ->
-    <<N:64/signed-big-integer-unit:8>>;
+    <<N:8/signed-big-integer-unit:8>>;
 encode({uhyper, N}) when is_integer(N) ->
-    <<N:64/unsigned-big-integer-unit:8>>;
+    <<N:8/unsigned-big-integer-unit:8>>;
 % shorts will be padded to 4 bytes
 encode({short, Buf}) when is_integer(Buf), Buf =< 16#FFFF ->
     encode({int, Buf});
