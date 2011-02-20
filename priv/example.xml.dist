@@ -1,0 +1,27 @@
+<domain type='qemu'>
+  <name>localvm</name>
+  <uuid>98da79eb-5b19-7be8-ca76-a1acff00e4d2</uuid>
+  <memory>219136</memory>
+  <currentMemory>219136</currentMemory>
+  <vcpu>1</vcpu>
+  <os>
+    <type arch='i686' machine='pc'>hvm</type>
+    <boot dev='hd'/>
+  </os>
+  <clock offset='utc'/>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>destroy</on_crash>
+  <devices>
+    <emulator>/usr/bin/qemu</emulator>
+    <disk type='file' device='disk'>
+      <source file='@PATH@/priv/buildroot-x86-ext2.fs'/>
+      <target dev='hda' bus='ide'/>
+    </disk>
+    <interface type='user'>
+      <mac address='52:54:00:cb:a2:6b'/>
+    </interface>
+    <graphics type='vnc' port='-1'/>
+  </devices>
+</domain>
+

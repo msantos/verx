@@ -51,7 +51,7 @@
         id/2
     ]).
 
--define(XML_PATH, "/var/tmp/iso/qemu/demo1.xml").
+-define(XML_PATH, "priv/example.xml").
 
 -record(state, {
     path,   % Unix socket path
