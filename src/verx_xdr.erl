@@ -99,7 +99,7 @@ encode({boolean, true}) ->
 encode({boolean, false}) ->
     <<0:32>>;
 
-encode({optional_data, {_Type, false}}) ->
+encode({optional_data, {_Type, Term}}) when Term == false; Term == <<>> ->
     encode({boolean, false});
 encode({optional_data, {Type, Buf}}) ->
     list_to_binary([
