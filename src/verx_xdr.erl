@@ -154,75 +154,84 @@ decode({Type, {Buf, Len}}) when is_binary(Buf), ( Type == char orelse Type == uc
 decode({opaque, {Buf, Len}}) when is_binary(Buf) ->
     Pad = pad(Len),
     <<Bin:Len/bytes, 0:Pad, Rest/binary>> = Buf,
-    {Bin, Rest};
+    {{opaque, Bin}, Rest};
 decode({Type, <<Len:32, Buf/binary>>}) when Type == string; Type == opaque ->
     Pad = pad(Len),
     <<String:Len/bytes, 0:Pad, Rest/binary>> = Buf,
-    {String, Rest};
+    {{string, String}, Rest};
 decode({int, <<N:4/signed-big-integer-unit:8, Buf/binary>>}) ->
-    {N, Buf};
+    {{int, N}, Buf};
 decode({uint, <<N:4/unsigned-big-integer-unit:8, Buf/binary>>}) ->
-    {N, Buf};
+    {{uint, N}, Buf};
 decode({hyper, <<N:8/signed-big-integer-unit:8, Buf/binary>>}) ->
-    {N, Buf};
+    {{hyper, N}, Buf};
 decode({uhyper, <<N:8/unsigned-big-integer-unit:8, Buf/binary>>}) ->
-    {N, Buf};
+    {{uhyper, N}, Buf};
 decode({short, Buf}) when is_binary(Buf) ->
     decode({int, Buf});
 decode({ushort, Buf}) when is_binary(Buf) ->
     decode({int, Buf});
 
 decode({boolean, <<1:32, Buf/binary>>}) ->
-    {true, Buf};
+    {{boolean, true}, Buf};
 decode({boolean, <<0:32, Buf/binary>>}) ->
-    {false, Buf};
+    {{boolean, false}, Buf};
 
+decode({optional_data, {{_Type, <<>>}, _Buf} = Type}) ->
+    Type;
 decode({optional_data, {Type, Buf}}) ->
     case decode({boolean, Buf}) of
-        {true, Buf1} ->
+        {{boolean, true}, Buf1} ->
             decode({Type, Buf1});
-        {false, Buf1} ->
-            {<<>>, Buf1}
+        {{boolean, false}, Buf1} ->
+            {{Type, <<>>}, Buf1}
     end;
 
 %%
 %% libivrt composite types
 %%
 decode({remote_auth_type, <<Buf/binary>>}) ->
-    decode({uint, Buf});
+    composite(remote_auth_type, decode({uint, Buf}));
 
 decode({remote_uuid, <<Buf/binary>>}) ->
-    decode({opaque, {Buf, ?VIR_UUID_BUFLEN}});
+    composite(remote_uuid, decode({opaque, {Buf, ?VIR_UUID_BUFLEN}}));
 
 decode({remote_string, Buf}) ->
-    decode({optional_data, {remote_nonnull_string, Buf}});
+    composite(remote_string, decode({optional_data, {remote_nonnull_string, Buf}}));
 decode({remote_nonnull_string, Buf}) ->
-    decode({string, Buf});
+    composite(remote_nonnull_string, decode({string, Buf}));
 
 decode({remote_domain, Buf}) ->
-    decode({optional_data, {remote_nonnull_domain, Buf}});
+    composite(remote_domain, decode({optional_data, {remote_nonnull_domain, Buf}}));
 
 decode({remote_interface, Buf}) ->
-    decode({optional_data, {remote_nonnull_interface, Buf}});
+    composite(remote_interface, decode({optional_data, {remote_nonnull_interface, Buf}}));
 
 decode({remote_network, Buf}) ->
-    decode({optional_data, {remote_nonnull_network, Buf}});
+    composite(remote_network, decode({optional_data, {remote_nonnull_network, Buf}}));
 
 decode({remote_node_device, Buf}) ->
-    decode({optional_data, {remote_nonnull_node_device, Buf}});
+    composite(remote_node_device, decode({optional_data, {remote_nonnull_node_device, Buf}}));
 
 decode({remote_secret, Buf}) ->
-    decode({optional_data, {remote_nonnull_secret, Buf}});
+    composite(remote_secret, decode({optional_data, {remote_nonnull_secret, Buf}}));
 
 decode({remote_storage_pool, Buf}) ->
-    decode({optional_data, {remote_nonnull_storage_pool, Buf}});
+    composite(remote_storage_pool, decode({optional_data, {remote_nonnull_storage_pool, Buf}}));
 
 decode({remote_storage_vol, Buf}) ->
-    decode({optional_data, {remote_nonnull_storage_vol, Buf}});
+    composite(remote_storage_vol, decode({optional_data, {remote_nonnull_storage_vol, Buf}}));
 
 decode({Type, <<Buf/binary>>}) ->
-    {Res, Bin} = struct(Buf, param(Type)),
-    {{Type, Res}, Bin}.
+    case struct(Buf, param(Type)) of
+        {error, _, _, _} = Error ->
+            Error;
+        {Struct, Rest} ->
+            {{Type, Struct}, Rest}
+    end.
+
+composite(CompositeType, {{_Type, Value}, Buf}) ->
+    {{CompositeType, Value}, Buf}.
 
 
 % Decode an XDR binary into a proplist
@@ -238,9 +247,9 @@ struct1(Buf, [Field|Struct], Acc) when is_binary(Field) ->
 struct1(Buf, [{Field, Type}|Struct], Acc) ->
     try struct_decode(Type, Buf) of
         {Val, <<>>} ->
-            struct1(<<>>, [], [{Type, Val}|Acc]);
+            struct1(<<>>, [], [Val|Acc]);
         {Val, Rest} ->
-            struct1(Rest, Struct, [{Type, Val}|Acc]);
+            struct1(Rest, Struct, [Val|Acc]);
         % Can be returned by recursively included entries
         {error, _Field, _Acc, _Buf} = Error ->
             Error
