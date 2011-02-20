@@ -547,6 +547,11 @@ proplist([{Type, [Val|_] = Vals}|T1], [{Field, Type}|T2], Acc) when is_tuple(Val
         L ->
             proplist(T1, T2, [{Field, L}|Acc])
     end;
+proplist([{Type, Val}|T1], [{Field, {Type, _Len}}|T2], Acc) ->
+    Val1 = case Type of
+        T when T == char; T == uchar -> hd(binary:split(Val, <<0>>));
+        T -> T
+    end,
+    proplist(T1, T2, [{Field, Val1}|Acc]);
 proplist([{Type, Val}|T1], [{Field, Type}|T2], Acc) ->
     proplist(T1, T2, [{Field, Val}|Acc]).
-

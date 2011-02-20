@@ -150,7 +150,8 @@ encode({Type, Struct}) ->
 %%% Decoding
 %%-------------------------------------------------------------------------
 decode({Type, {Buf, Len}}) when is_binary(Buf), ( Type == char orelse Type == uchar ) ->
-    char_decode(Buf, Len, []);
+    {Char, Rest} = char_decode(Buf, Len, []),
+    {{Type, Char}, Rest};
 decode({opaque, {Buf, Len}}) when is_binary(Buf) ->
     Pad = pad(Len),
     <<Bin:Len/bytes, 0:Pad, Rest/binary>> = Buf,
