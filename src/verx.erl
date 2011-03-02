@@ -34,7 +34,7 @@
 
 -export([call/2, call/3]).
 -export([start_link/0, start_link/1]).
--export([start/0, start/1]).
+-export([start/0, start/1, stop/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
         terminate/2, code_change/3]).
 
@@ -127,6 +127,9 @@ start_link() ->
 start_link(Path) when is_list(Path) ->
     gen_server:start_link(?MODULE, [Path], []).
 
+stop(Ref) when is_pid(Ref) ->
+    gen_server:call(Ref, stop).
+
 
 %%-------------------------------------------------------------------------
 %%% Callbacks
@@ -149,7 +152,10 @@ handle_call({call, Proc, []}, _From, #state{s = S} = State) ->
 handle_call({call, Proc, Arg}, _From, #state{s = S} = State) when is_binary(Arg) ->
     Res = verx_rpc:call(S, Proc, Arg),
     Reply = verx_rpc:response(Proc, Res),
-    {reply, Reply, State}.
+    {reply, Reply, State};
+
+handle_call(stop, _From, State) ->
+    {stop, shutdown, ok, State}.
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
