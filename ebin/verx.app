@@ -4,6 +4,7 @@
     {vsn, "0.01"},
     {modules, [
         verx,
+        verx_srv,
         verx_rpc,
         verx_xdr,
         verx_args,
