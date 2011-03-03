@@ -156,6 +156,14 @@ decode({opaque, {Buf, Len}}) when is_binary(Buf) ->
     Pad = pad(Len),
     <<Bin:Len/bytes, 0:Pad, Rest/binary>> = Buf,
     {{opaque, Bin}, Rest};
+decode({int, {Buf, Len}}) when is_binary(Buf), is_integer(Len) ->
+    {Int, Rest} = int_decode(Buf),
+    {{int, Int}, Rest};
+
+% For other array types, ignore the length field for now
+decode({Type, {Buf, Len}}) when is_binary(Buf), is_integer(Len) ->
+    decode({Type, Buf});
+
 decode({Type, <<Len:32, Buf/binary>>}) when Type == string; Type == opaque ->
     Pad = pad(Len),
     <<String:Len/bytes, 0:Pad, Rest/binary>> = Buf,
@@ -308,6 +316,12 @@ char_decode(<<0:24, Byte:1/bytes, Bytes/binary>>, N, Acc) ->
 char_decode(<<_:24, Byte:1/bytes, Bytes/binary>>, N, Acc) ->
     char_decode(Bytes, N-1, [Byte|Acc]).
 
+int_decode(<<N:4/signed-big-integer-unit:8, Bytes/binary>>) ->
+    int_decode1(Bytes, N, []).
+int_decode1(Bytes, 0, Acc) ->
+    {lists:reverse(Acc), Bytes};
+int_decode1(<<Int:4/signed-big-integer-unit:8, Bytes/binary>>, N, Acc) ->
+    int_decode1(Bytes, N-1, [Int|Acc]).
 
 % size in bits
 pad(N) when N rem 4 == 0 -> 0;

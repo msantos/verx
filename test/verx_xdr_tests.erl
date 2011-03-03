@@ -36,6 +36,21 @@
 -include("verx.hrl").
 
 
+int_encode_decode_test() ->
+    N = <<0,0,0,12>>,
+    N = verx_xdr:encode({int, 12}),
+    {{int,12},<<>>} = verx_xdr:decode({int, N}).
+
+ints_decode_test() ->
+    {{int,[1,2,3,4,5,6]},<<>>} = verx_xdr:decode({int, {
+                <<0,0,0,6,
+                0,0,0,1,
+                0,0,0,2,
+                0,0,0,3,
+                0,0,0,4,
+                0,0,0,5,
+                0,0,0,6>>, 10}}).
+
 simple_encode_decode_test() ->
     Struct = {remote_vcpu_info, [
             {uint, 1},

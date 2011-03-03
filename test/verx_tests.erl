@@ -52,6 +52,8 @@ create_test() ->
 
     {ok, Domain} =  verx:create(Ref),
 
+    {ok, [{ids, [_,_]}]} = verx:list_domains(Ref),
+
     Dom = proplists:get_value(dom, Domain),
     UUID = proplists:get_value(uuid, Dom),
 
