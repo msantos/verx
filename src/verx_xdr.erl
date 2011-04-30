@@ -149,6 +149,10 @@ encode({Type, Struct}) ->
 %%-------------------------------------------------------------------------
 %%% Decoding
 %%-------------------------------------------------------------------------
+decode({Type, {<<Len:4/signed-big-integer-unit:8, Buf/binary>>, {max, Max}}})
+    when is_binary(Buf), ( Type == char orelse Type == uchar ), Len < Max ->
+    {Char, Rest} = char_decode(Buf, Len, []),
+    {{Type, Char}, Rest};
 decode({Type, {Buf, Len}}) when is_binary(Buf), ( Type == char orelse Type == uchar ) ->
     {Char, Rest} = char_decode(Buf, Len, []),
     {{Type, Char}, Rest};
@@ -156,6 +160,8 @@ decode({opaque, {Buf, Len}}) when is_binary(Buf) ->
     Pad = pad(Len),
     <<Bin:Len/bytes, 0:Pad, Rest/binary>> = Buf,
     {{opaque, Bin}, Rest};
+decode({int, {Buf, {max, Len}}}) when is_binary(Buf), is_integer(Len) ->
+    decode({int, {Buf, Len}});
 decode({int, {Buf, Len}}) when is_binary(Buf), is_integer(Len) ->
     {Int, Rest} = int_decode(Buf),
     {{int, Int}, Rest};

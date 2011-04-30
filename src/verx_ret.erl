@@ -86,7 +86,7 @@ param(get_capabilities) ->
     ];
 param(node_get_cells_free_memory) ->
     [
-         {freeMems, {hyper, ?REMOTE_NODE_MAX_CELLS}}
+         {freeMems, {hyper, {max, ?REMOTE_NODE_MAX_CELLS}}}
     ];
 param(node_get_free_memory) ->
     [
@@ -99,7 +99,7 @@ param(domain_get_scheduler_type) ->
     ];
 param(domain_get_scheduler_parameters) ->
     [
-         {params, {remote_sched_param, ?REMOTE_DOMAIN_SCHEDULER_PARAMETERS_MAX}}
+         {params, {remote_sched_param, {max, ?REMOTE_DOMAIN_SCHEDULER_PARAMETERS_MAX}}}
     ];
 param(domain_block_stats) ->
     [
@@ -122,19 +122,19 @@ param(domain_interface_stats) ->
     ];
 param(domain_memory_stats) ->
     [
-         {stats, {remote_domain_memory_stat, ?REMOTE_DOMAIN_MEMORY_STATS_MAX}}
+         {stats, {remote_domain_memory_stat, {max, ?REMOTE_DOMAIN_MEMORY_STATS_MAX}}}
     ];
 param(domain_block_peek) ->
     [
-         {buffer, {opaque, ?REMOTE_DOMAIN_BLOCK_PEEK_BUFFER_MAX}}
+         {buffer, {opaque, {max, ?REMOTE_DOMAIN_BLOCK_PEEK_BUFFER_MAX}}}
     ];
 param(domain_memory_peek) ->
     [
-         {buffer, {opaque, ?REMOTE_DOMAIN_MEMORY_PEEK_BUFFER_MAX}}
+         {buffer, {opaque, {max, ?REMOTE_DOMAIN_MEMORY_PEEK_BUFFER_MAX}}}
     ];
 param(list_domains) ->
     [
-         {ids, {int, ?REMOTE_DOMAIN_ID_LIST_MAX}}
+         {ids, {int, {max, ?REMOTE_DOMAIN_ID_LIST_MAX}}}
     ];
 param(num_of_domains) ->
     [
@@ -178,7 +178,7 @@ param(domain_dump_xml) ->
     ];
 param(domain_migrate_prepare) ->
     [
-         {cookie, {opaque, ?REMOTE_MIGRATE_COOKIE_MAX}},
+         {cookie, {opaque, {max, ?REMOTE_MIGRATE_COOKIE_MAX}}},
          {uri_out, remote_string}
     ];
 param(domain_migrate_finish) ->
@@ -187,7 +187,7 @@ param(domain_migrate_finish) ->
     ];
 param(list_defined_domains) ->
     [
-         {names, {remote_nonnull_string, ?REMOTE_DOMAIN_NAME_LIST_MAX}}
+         {names, {remote_nonnull_string, {max, ?REMOTE_DOMAIN_NAME_LIST_MAX}}}
     ];
 param(num_of_defined_domains) ->
     [
@@ -199,8 +199,8 @@ param(domain_define_xml) ->
     ];
 param(domain_get_vcpus) ->
     [
-         {info, {remote_vcpu_info, ?REMOTE_VCPUINFO_MAX}},
-         {cpumaps, {opaque, ?REMOTE_CPUMAPS_MAX}}
+         {info, {remote_vcpu_info, {max, ?REMOTE_VCPUINFO_MAX}}},
+         {cpumaps, {opaque, {max, ?REMOTE_CPUMAPS_MAX}}}
     ];
 param(domain_get_max_vcpus) ->
     [
@@ -208,13 +208,13 @@ param(domain_get_max_vcpus) ->
     ];
 param(domain_get_security_label) ->
     [
-         {label, {char, ?REMOTE_SECURITY_LABEL_MAX}},
+         {label, {char, {max, ?REMOTE_SECURITY_LABEL_MAX}}},
          {enforcing, int}
     ];
 param(node_get_security_model) ->
     [
-         {model, {char, ?REMOTE_SECURITY_MODEL_MAX}},
-         {doi, {char, ?REMOTE_SECURITY_DOI_MAX}}
+         {model, {char, {max, ?REMOTE_SECURITY_MODEL_MAX}}},
+         {doi, {char, {max, ?REMOTE_SECURITY_DOI_MAX}}}
     ];
 param(domain_get_autostart) ->
     [
@@ -226,7 +226,7 @@ param(num_of_networks) ->
     ];
 param(list_networks) ->
     [
-         {names, {remote_nonnull_string, ?REMOTE_NETWORK_NAME_LIST_MAX}}
+         {names, {remote_nonnull_string, {max, ?REMOTE_NETWORK_NAME_LIST_MAX}}}
     ];
 param(num_of_defined_networks) ->
     [
@@ -234,7 +234,7 @@ param(num_of_defined_networks) ->
     ];
 param(list_defined_networks) ->
     [
-         {names, {remote_nonnull_string, ?REMOTE_NETWORK_NAME_LIST_MAX}}
+         {names, {remote_nonnull_string, {max, ?REMOTE_NETWORK_NAME_LIST_MAX}}}
     ];
 param(network_lookup_by_uuid) ->
     [
@@ -270,7 +270,7 @@ param(num_of_interfaces) ->
     ];
 param(list_interfaces) ->
     [
-         {names, {remote_nonnull_string, ?REMOTE_INTERFACE_NAME_LIST_MAX}}
+         {names, {remote_nonnull_string, {max, ?REMOTE_INTERFACE_NAME_LIST_MAX}}}
     ];
 param(num_of_defined_interfaces) ->
     [
@@ -278,7 +278,7 @@ param(num_of_defined_interfaces) ->
     ];
 param(list_defined_interfaces) ->
     [
-         {names, {remote_nonnull_string, ?REMOTE_DEFINED_INTERFACE_NAME_LIST_MAX}}
+         {names, {remote_nonnull_string, {max, ?REMOTE_DEFINED_INTERFACE_NAME_LIST_MAX}}}
     ];
 param(interface_lookup_by_name) ->
     [
@@ -298,7 +298,7 @@ param(interface_define_xml) ->
     ];
 param(auth_list) ->
     [
-         {types, {remote_auth_type, ?REMOTE_AUTH_TYPE_LIST_MAX}}
+         {types, {remote_auth_type, {max, ?REMOTE_AUTH_TYPE_LIST_MAX}}}
     ];
 param(auth_sasl_init) ->
     [
@@ -308,13 +308,13 @@ param(auth_sasl_start) ->
     [
          {complete, int},
          {nil, int},
-         {data, {char, ?REMOTE_AUTH_SASL_DATA_MAX}}
+         {data, {char, {max, ?REMOTE_AUTH_SASL_DATA_MAX}}}
     ];
 param(auth_sasl_step) ->
     [
          {complete, int},
          {nil, int},
-         {data, {char, ?REMOTE_AUTH_SASL_DATA_MAX}}
+         {data, {char, {max, ?REMOTE_AUTH_SASL_DATA_MAX}}}
     ];
 param(auth_polkit) ->
     [
@@ -326,7 +326,7 @@ param(num_of_storage_pools) ->
     ];
 param(list_storage_pools) ->
     [
-         {names, {remote_nonnull_string, ?REMOTE_STORAGE_POOL_NAME_LIST_MAX}}
+         {names, {remote_nonnull_string, {max, ?REMOTE_STORAGE_POOL_NAME_LIST_MAX}}}
     ];
 param(num_of_defined_storage_pools) ->
     [
@@ -334,7 +334,7 @@ param(num_of_defined_storage_pools) ->
     ];
 param(list_defined_storage_pools) ->
     [
-         {names, {remote_nonnull_string, ?REMOTE_STORAGE_POOL_NAME_LIST_MAX}}
+         {names, {remote_nonnull_string, {max, ?REMOTE_STORAGE_POOL_NAME_LIST_MAX}}}
     ];
 param(find_storage_pool_sources) ->
     [
@@ -381,7 +381,7 @@ param(storage_pool_num_of_volumes) ->
     ];
 param(storage_pool_list_volumes) ->
     [
-         {names, {remote_nonnull_string, ?REMOTE_STORAGE_VOL_NAME_LIST_MAX}}
+         {names, {remote_nonnull_string, {max, ?REMOTE_STORAGE_VOL_NAME_LIST_MAX}}}
     ];
 param(storage_vol_lookup_by_name) ->
     [
@@ -423,7 +423,7 @@ param(node_num_of_devices) ->
     ];
 param(node_list_devices) ->
     [
-         {names, {remote_nonnull_string, ?REMOTE_NODE_DEVICE_NAME_LIST_MAX}}
+         {names, {remote_nonnull_string, {max, ?REMOTE_NODE_DEVICE_NAME_LIST_MAX}}}
     ];
 param(node_device_lookup_by_name) ->
     [
@@ -443,7 +443,7 @@ param(node_device_num_of_caps) ->
     ];
 param(node_device_list_caps) ->
     [
-         {names, {remote_nonnull_string, ?REMOTE_NODE_DEVICE_CAPS_LIST_MAX}}
+         {names, {remote_nonnull_string, {max, ?REMOTE_NODE_DEVICE_CAPS_LIST_MAX}}}
     ];
 param(node_device_create_xml) ->
     [
@@ -471,7 +471,7 @@ param(num_of_secrets) ->
     ];
 param(list_secrets) ->
     [
-         {uuids, {remote_nonnull_string, ?REMOTE_SECRET_UUID_LIST_MAX}}
+         {uuids, {remote_nonnull_string, {max, ?REMOTE_SECRET_UUID_LIST_MAX}}}
     ];
 param(secret_lookup_by_uuid) ->
     [
@@ -487,7 +487,7 @@ param(secret_get_xml_desc) ->
     ];
 param(secret_get_value) ->
     [
-         {value, {opaque, ?REMOTE_SECRET_VALUE_MAX}}
+         {value, {opaque, {max, ?REMOTE_SECRET_VALUE_MAX}}}
     ];
 param(secret_lookup_by_usage) ->
     [
