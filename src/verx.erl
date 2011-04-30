@@ -64,27 +64,27 @@ info(Ref) ->
     info(Ref, node).
 
 info(Ref, node) ->
-    verx_srv:call(Ref, node_get_info);
+    verx:call(Ref, node_get_info);
 info(Ref, {domain, UUID}) when is_binary(UUID) ->
-    verx_srv:call(Ref, domain_get_info, [
+    verx:call(Ref, domain_get_info, [
             {string, ""},               % name
             {remote_uuid, UUID},        % UUID
             {int, 0}                    % id
         ]).
 
 id(Ref, N) ->
-    verx_srv:call(Ref, domain_lookup_by_id, [
+    verx:call(Ref, domain_lookup_by_id, [
             {int, N}                    % domain id
         ]).
 
 capabilities(Ref) ->
-    verx_srv:call(Ref, get_capabilities).
+    verx:call(Ref, get_capabilities).
 
 create(Ref) ->
     create(Ref, ?XML_PATH).
 create(Ref, Path) ->
     {ok, Bin} = file:read_file(Path),
-    verx_srv:call(Ref, domain_create_xml, [
+    verx:call(Ref, domain_create_xml, [
             {remote_nonnull_string, Bin},   % XML
             {int, 0}                        % flags
         ]).
@@ -92,17 +92,15 @@ create(Ref, Path) ->
 list_domains(Ref) ->
     list_domains(Ref, 10).
 list_domains(Ref, N) ->
-    verx_srv:call(Ref, list_domains, [
+    verx:call(Ref, list_domains, [
             {int, N}                    % number of domains
         ]).
 
 destroy(Ref, UUID) when is_binary(UUID) ->
-    verx_srv:call(Ref, domain_destroy, [
+    verx:call(Ref, domain_destroy, [
             {remote_domain, [
                 {remote_nonnull_string, ""},    % name
                 {remote_uuid, UUID},            % UUID, binary
                 {int, 0}                        % id
             ]}
         ]).
-
-
