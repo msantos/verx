@@ -54,7 +54,12 @@ call(Ref, Proc, Arg) when is_list(Arg) ->
     Bin = list_to_binary([ verx_xdr:encode(N) || N <- Arg ]),
     call(Ref, Proc, Bin);
 call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_binary(Arg) ->
-    gen_server:call(Ref, {call, Proc, Arg}).
+    case lists:member(Proc, verx_args:api()) of
+        true ->
+            gen_server:call(Ref, {call, Proc, Arg});
+        false ->
+            {error, unsupported}
+    end.
 
 start() ->
     start([]).
