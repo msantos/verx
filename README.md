@@ -99,15 +99,12 @@ similar to the example in the Ruby libvirt documentation
         ] ],
     
         verx:stop(Ref).
-    
+
     result(Op, {ok, N}) ->
         error_logger:info_report([{op, Op}] ++ N);
-    result(Op, {error, Error}) ->
-        N = case is_list(Error) of
-            true -> Error;
-            false -> [{error, Error}]
-        end,
-        error_logger:info_report([{op, Op}] ++ N).
+    result(Op, {error, _Error} = N) ->
+        error_logger:error_report([{op, Op}] ++ [N]).
+
 
 ## TODO
 

@@ -70,5 +70,30 @@ create_test() ->
                     {int,-1},
                     {int,-1},
                     {remote_network,<<>>}]},
-            <<>>}} = verx:id(Ref, 31337).
+            <<>>}} = verx:id(Ref, 31337),
 
+    ok = verx:stop(Ref).
+
+
+node_info_test() ->
+    {ok, Ref} = verx:start(),
+
+    [ result(N, verx:call(Ref, N)) || N <- [
+        node_get_info,
+        node_get_cells_free_memory,
+        get_version,
+        get_lib_version,
+        get_hostname,
+        get_uri,
+        node_get_free_memory,
+        node_get_security_model,
+        is_secure,
+        get_capabilities
+    ] ],
+
+    ok = verx:stop(Ref).
+
+result(Op, {ok, N}) ->
+    error_logger:info_report([{op, Op}] ++ N);
+result(Op, {error, _Error} = N) ->
+    error_logger:error_report([{op, Op}] ++ [N]).
