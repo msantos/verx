@@ -94,9 +94,9 @@ node_info_test() ->
     ok = verx:stop(Ref).
 
 result(Op, {ok, N}) ->
-    error_logger:info_report([{op, Op}] ++ N);
+    ?debugFmt("~p~n", [[{op, Op}] ++ N]);
 result(Op, {error, _Error} = N) ->
-    error_logger:error_report([{op, Op}] ++ [N]).
+    ?debugFmt("~p~n", [[{op, Op}] ++ [N]]).
 
 
 suspend_resume_destroy_test() ->
