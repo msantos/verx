@@ -63,26 +63,37 @@ call(Ref, Proc, Arg) ->
 info(Ref) ->
     info(Ref, node).
 
-info(Ref, node) ->
-    verx:call(Ref, node_get_info);
-info(Ref, {domain, UUID}) when is_binary(UUID) ->
+node_get_info(Ref) ->
+    verx:call(Ref, node_get_info).
+
+% Only the UUID is required
+domain_get_info(Ref, UUID) ->
+    domain_get_info(Ref, "", UUID, 0).
+
+domain_get_info(Ref, Name, UUID, Id) when ( is_list(Name) orelse is_binary(Name) ),
+    is_binary(UUID), is_integer(Id) ->
     verx:call(Ref, domain_get_info, [
-            {string, ""},               % name
+            {string, Name},             % name
             {remote_uuid, UUID},        % UUID
-            {int, 0}                    % id
+            {int, Id}                   % id
         ]).
 
-id(Ref, N) ->
+domain_lookup_by_id(Ref, N) when is_integer(N) ->
     verx:call(Ref, domain_lookup_by_id, [
             {int, N}                    % domain id
         ]).
 
-capabilities(Ref) ->
+get_capabilities(Ref) ->
     verx:call(Ref, get_capabilities).
 
 create(Ref) ->
-    create(Ref, ?XML_PATH).
+    domain_create_xml(Ref).
 create(Ref, Path) ->
+    domain_create_xml(Ref, Path).
+
+domain_create_xml(Ref) ->
+    domain_create_xml(Ref, ?XML_PATH).
+domain_create_xml(Ref, Path) ->
     {ok, Bin} = file:read_file(Path),
     verx:call(Ref, domain_create_xml, [
             {remote_nonnull_string, Bin},   % XML
@@ -91,12 +102,19 @@ create(Ref, Path) ->
 
 list_domains(Ref) ->
     list_domains(Ref, 10).
-list_domains(Ref, N) ->
+list_domains(Ref, N) when is_integer(N) ->
     verx:call(Ref, list_domains, [
             {int, N}                    % number of domains
         ]).
 
-destroy(Ref, UUID) when is_binary(UUID) ->
+destroy(Ref, UUID) ->
+    domain_destroy(Ref, UUID).
+
+domain_destroy(Ref, UUID) ->
+    domain_destroy(Ref, "", UUID, 0).
+
+domain_destroy(Ref, Name, UUID, Id) when ( is_list(Name) orelse is_binary(Name) ),
+    is_binary(UUID), is_integer(Id) ->
     verx:call(Ref, domain_destroy, [
             {remote_domain, [
                 {remote_nonnull_string, ""},    % name

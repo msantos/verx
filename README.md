@@ -67,8 +67,59 @@ To shutdown the VM:
         verx:destroy(Ref, UUID),
         verx:stop(Ref).
 
+Or using the call inteface:
+
+    halt(Ref, UUID) ->
+        verx:call(Ref, domain_destroy, [
+                {string, ""},       % name
+                {remote_uuid, UUID},
+                {int, 0}
+                ]),
+        verx:stop(Ref).
+
 
 ### SUSPENDING AND RESUMING A DOMAIN
+
+This example is the Erlang equivalent of a Python script to manipulate a
+running domain. The example is taken from:
+
+<http://www.ibm.com/developerworks/linux/library/l-libvirt/>
+
+
+    -module(ex6).
+    
+    -export([start/0]).
+    
+    start() ->
+        {ok, Ref} = verx:start(),
+        % Return at most 10 domains
+        {ok, [{ids, Ids}]} = verx:call(Ref, list_domains, [{int, 10}]),
+        [ states(Ref, Id) || Id <- Ids ],
+        ok.
+    
+    states(Ref, Id) ->
+        {ok, [{dom, Attr}]} = verx:call(Ref, domain_lookup_by_id, [{int, Id}]),
+    
+        Name = proplists:get_value(name, Attr),
+        UUID = proplists:get_value(uuid, Attr),
+    
+        Dom = [
+            {string, Name},
+            {remote_uuid, UUID},
+            {int, Id}
+        ],
+    
+        io:format("running: ~p~n", [verx:call(Ref, domain_get_info, Dom)]),
+    
+        {ok, void} = verx:call(Ref, domain_suspend, Dom),
+        io:format("suspend: ~p~n", [verx:call(Ref, domain_get_info, Dom)]),
+    
+        {ok, void} = verx:call(Ref, domain_resume, Dom),
+        io:format("resumed: ~p~n", [verx:call(Ref, domain_get_info, Dom)]),
+    
+        {ok, void} = verx:call(Ref, domain_destroy, Dom),
+        io:format("destroyed: ~p~n", [verx:call(Ref, domain_get_info, Dom)]).
+
 
 ### RETRIEVING HYPERVISOR INFORMATION
 
@@ -107,4 +158,3 @@ similar to the example in the Ruby libvirt documentation
 
 
 ## TODO
-
