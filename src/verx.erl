@@ -34,14 +34,15 @@
 -export([start/0, stop/1]).
 -export([call/2, call/3]).
 -export([
-        info/1, info/2,
-        capabilities/1,
+        node_get_info/1,
+        domain_get_info/2, domain_get_info/4,
+        get_capabilities/1, capabilities/1,
+        domain_lookup_by_id/2,
 
-        create/1, create/2,
+        domain_create_xml/1, domain_create_xml/2, create/1, create/2,
         list_domains/1, list_domains/2,
 
-        destroy/2,
-        id/2
+        domain_destroy/2, domain_destroy/4, destroy/2
     ]).
 
 -define(XML_PATH, "priv/example.xml").
@@ -60,9 +61,6 @@ call(Ref, Proc) ->
 call(Ref, Proc, Arg) ->
     verx_srv:call(Ref, Proc, Arg).
 
-info(Ref) ->
-    info(Ref, node).
-
 node_get_info(Ref) ->
     verx:call(Ref, node_get_info).
 
@@ -71,7 +69,7 @@ domain_get_info(Ref, UUID) ->
     domain_get_info(Ref, "", UUID, 0).
 
 domain_get_info(Ref, Name, UUID, Id) when ( is_list(Name) orelse is_binary(Name) ),
-    is_binary(UUID), is_integer(Id) ->
+is_binary(UUID), is_integer(Id) ->
     verx:call(Ref, domain_get_info, [
             {string, Name},             % name
             {remote_uuid, UUID},        % UUID
@@ -83,6 +81,8 @@ domain_lookup_by_id(Ref, N) when is_integer(N) ->
             {int, N}                    % domain id
         ]).
 
+capabilities(Ref) ->
+    get_capabilities(Ref).
 get_capabilities(Ref) ->
     verx:call(Ref, get_capabilities).
 
@@ -114,11 +114,11 @@ domain_destroy(Ref, UUID) ->
     domain_destroy(Ref, "", UUID, 0).
 
 domain_destroy(Ref, Name, UUID, Id) when ( is_list(Name) orelse is_binary(Name) ),
-    is_binary(UUID), is_integer(Id) ->
+is_binary(UUID), is_integer(Id) ->
     verx:call(Ref, domain_destroy, [
             {remote_domain, [
-                {remote_nonnull_string, ""},    % name
-                {remote_uuid, UUID},            % UUID, binary
-                {int, 0}                        % id
-            ]}
+                    {remote_nonnull_string, ""},    % name
+                    {remote_uuid, UUID},            % UUID, binary
+                    {int, 0}                        % id
+                ]}
         ]).

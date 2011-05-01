@@ -48,7 +48,7 @@ create_test() ->
          {nodes,_},
          {sockets,_},
          {cores,_},
-         {threads,_}]} = verx:info(Ref),
+         {threads,_}]} = verx:node_get_info(Ref),
 
     {ok, Domain} =  verx:create(Ref),
 
@@ -70,7 +70,7 @@ create_test() ->
                     {int,-1},
                     {int,-1},
                     {remote_network,<<>>}]},
-            <<>>}} = verx:id(Ref, 31337),
+            <<>>}} = verx:domain_lookup_by_id(Ref, 31337),
 
     ok = verx:stop(Ref).
 
