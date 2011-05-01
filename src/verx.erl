@@ -146,10 +146,14 @@ domain_destroy(Ref, Name, UUID, Id) ->
 %%-------------------------------------------------------------------------
 proc(Ref, Proc, Name, UUID, Id) when ( is_list(Name) orelse is_binary(Name) ),
 is_binary(UUID), is_integer(Id) ->
-    verx:call(Ref, Proc, [
+    Result = verx:call(Ref, Proc, [
             {remote_domain, [
                     {remote_nonnull_string, Name},  % name
                     {remote_uuid, UUID},            % UUID, binary
                     {int, Id}                       % id
                 ]}
-        ]).
+        ]),
+    case Result of
+        {ok, void} -> ok;
+        N -> N
+    end.

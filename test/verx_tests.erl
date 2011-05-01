@@ -57,7 +57,7 @@ create_test() ->
     Dom = proplists:get_value(dom, Domain),
     UUID = proplists:get_value(uuid, Dom),
 
-    {ok, void} = verx:destroy(Ref, UUID),
+    ok = verx:destroy(Ref, UUID),
 
     {error,{{remote_error,[{int,42},
                     {int,10},
@@ -104,7 +104,7 @@ suspend_resume_destroy_test() ->
     {ok, _Domain} =  verx:create(Ref),
     {ok, [{ids, Ids}]} = verx:call(Ref, list_domains, [{int, 10}]),
     [ states(Ref, Id) || Id <- Ids ],
-    ok.
+    ok = verx:stop(Ref).
 
 states(Ref, Id) ->
     {ok, [{dom, Attr}]} = verx:call(Ref, domain_lookup_by_id, [{int, Id}]),
