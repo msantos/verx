@@ -39,7 +39,10 @@
 int_encode_decode_test() ->
     N = <<0,0,0,12>>,
     N = verx_xdr:encode({int, 12}),
-    {{int,12},<<>>} = verx_xdr:decode({int, N}).
+    {{int,12},<<>>} = verx_xdr:decode({int, N}),
+
+    N = verx_xdr:encode({ushort, 12}),
+    {{ushort,12},<<>>} = verx_xdr:decode({ushort, N}).
 
 ints_decode_test() ->
     {{int,[1,2,3,4,5,6]},<<>>} = verx_xdr:decode({int, {
@@ -83,4 +86,3 @@ composite_encode_decode_test() ->
     {Struct, <<>>} = verx_xdr:decode({remote_error, Bin}).
     %{Struct1, <<>>} = verx_xdr:decode({remote_error, Bin}),
     %?debugFmt("~p~n~p~n", [Struct, Struct1]).
-

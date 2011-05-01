@@ -182,10 +182,10 @@ decode({hyper, <<N:8/signed-big-integer-unit:8, Buf/binary>>}) ->
     {{hyper, N}, Buf};
 decode({uhyper, <<N:8/unsigned-big-integer-unit:8, Buf/binary>>}) ->
     {{uhyper, N}, Buf};
-decode({short, Buf}) when is_binary(Buf) ->
-    decode({int, Buf});
-decode({ushort, Buf}) when is_binary(Buf) ->
-    decode({int, Buf});
+decode({short, <<N:4/signed-big-integer-unit:8, Buf/binary>>}) ->
+    {{short, N}, Buf};
+decode({ushort, <<N:4/unsigned-big-integer-unit:8, Buf/binary>>}) ->
+    {{ushort, N}, Buf};
 
 decode({boolean, <<1:32, Buf/binary>>}) ->
     {{boolean, true}, Buf};
