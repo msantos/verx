@@ -97,3 +97,53 @@ result(Op, {ok, N}) ->
     error_logger:info_report([{op, Op}] ++ N);
 result(Op, {error, _Error} = N) ->
     error_logger:error_report([{op, Op}] ++ [N]).
+
+
+suspend_resume_destroy_test() ->
+    {ok, Ref} = verx:start(),
+    {ok, _Domain} =  verx:create(Ref),
+    {ok, [{ids, Ids}]} = verx:call(Ref, list_domains, [{int, 10}]),
+    [ states(Ref, Id) || Id <- Ids ],
+    ok.
+
+states(Ref, Id) ->
+    {ok, [{dom, Attr}]} = verx:call(Ref, domain_lookup_by_id, [{int, Id}]),
+
+    Name = proplists:get_value(name, Attr),
+    UUID = proplists:get_value(uuid, Attr),
+
+    Dom = [
+        {string, Name},
+        {remote_uuid, UUID},
+        {int, Id}
+    ],
+
+    {ok,[{state,<<1>>},
+         {max_mem,_},
+         {memory,_},
+         {nr_virt_cpu,_},
+         {cpu_time,_}]} = verx:call(Ref, domain_get_info, Dom),
+
+    {ok, void} = verx:call(Ref, domain_suspend, Dom),
+
+    {ok,[{state,<<3>>},
+         {max_mem,_},
+         {memory,_},
+         {nr_virt_cpu,_},
+         {cpu_time,_}]} = verx:call(Ref, domain_get_info, Dom),
+
+    {ok, void} = verx:call(Ref, domain_resume, Dom),
+
+    {ok,[{state,<<1>>},
+         {max_mem,_},
+         {memory,_},
+         {nr_virt_cpu,_},
+         {cpu_time,_}]} = verx:call(Ref, domain_get_info, Dom),
+
+    {ok, void} = verx:call(Ref, domain_destroy, Dom),
+
+    {ok,[{state,<<5>>},
+         {max_mem,_},
+         {memory,_},
+         {nr_virt_cpu,_},
+         {cpu_time,_}]} = verx:call(Ref, domain_get_info, Dom).

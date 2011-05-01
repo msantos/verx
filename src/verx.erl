@@ -42,6 +42,8 @@
         domain_create_xml/1, domain_create_xml/2, create/1, create/2,
         list_domains/1, list_domains/2,
 
+        domain_suspend/2, domain_suspend/4, suspend/2,
+        domain_resume/2, domain_resume/4, resume/2,
         domain_destroy/2, domain_destroy/4, destroy/2
     ]).
 
@@ -68,13 +70,8 @@ node_get_info(Ref) ->
 domain_get_info(Ref, UUID) ->
     domain_get_info(Ref, "", UUID, 0).
 
-domain_get_info(Ref, Name, UUID, Id) when ( is_list(Name) orelse is_binary(Name) ),
-is_binary(UUID), is_integer(Id) ->
-    verx:call(Ref, domain_get_info, [
-            {string, Name},             % name
-            {remote_uuid, UUID},        % UUID
-            {int, Id}                   % id
-        ]).
+domain_get_info(Ref, Name, UUID, Id) ->
+    proc(Ref, domain_get_info, Name, UUID, Id).
 
 domain_lookup_by_id(Ref, N) when is_integer(N) ->
     verx:call(Ref, domain_lookup_by_id, [
@@ -107,18 +104,52 @@ list_domains(Ref, N) when is_integer(N) ->
             {int, N}                    % number of domains
         ]).
 
+%%
+%% Suspend
+%%
+suspend(Ref, UUID) ->
+    domain_suspend(Ref, UUID).
+
+domain_suspend(Ref, UUID) ->
+    domain_suspend(Ref, "", UUID, 0).
+
+domain_suspend(Ref, Name, UUID, Id) ->
+    proc(Ref, domain_suspend, Name, UUID, Id).
+
+%%
+%% Resume
+%%
+resume(Ref, UUID) ->
+    domain_resume(Ref, UUID).
+
+domain_resume(Ref, UUID) ->
+    domain_resume(Ref, "", UUID, 0).
+
+domain_resume(Ref, Name, UUID, Id) ->
+    proc(Ref, domain_resume, Name, UUID, Id).
+
+%%
+%% Destroy
+%%
 destroy(Ref, UUID) ->
     domain_destroy(Ref, UUID).
 
 domain_destroy(Ref, UUID) ->
     domain_destroy(Ref, "", UUID, 0).
 
-domain_destroy(Ref, Name, UUID, Id) when ( is_list(Name) orelse is_binary(Name) ),
+domain_destroy(Ref, Name, UUID, Id) ->
+    proc(Ref, domain_destroy, Name, UUID, Id).
+
+
+%%-------------------------------------------------------------------------
+%%% Internal functions
+%%-------------------------------------------------------------------------
+proc(Ref, Proc, Name, UUID, Id) when ( is_list(Name) orelse is_binary(Name) ),
 is_binary(UUID), is_integer(Id) ->
-    verx:call(Ref, domain_destroy, [
+    verx:call(Ref, Proc, [
             {remote_domain, [
-                    {remote_nonnull_string, ""},    % name
+                    {remote_nonnull_string, Name},  % name
                     {remote_uuid, UUID},            % UUID, binary
-                    {int, 0}                        % id
+                    {int, Id}                       % id
                 ]}
         ]).
