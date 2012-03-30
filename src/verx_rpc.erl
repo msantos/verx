@@ -1,4 +1,4 @@
-%% Copyright (c) 2011, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2011-2012, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %% 
 %% Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
 %% ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 %% POSSIBILITY OF SUCH DAMAGE.
 -module(verx_rpc).
--include("procket.hrl").
+-include_lib("procket/include/procket.hrl").
 -include("verx.hrl").
 
 -export([
