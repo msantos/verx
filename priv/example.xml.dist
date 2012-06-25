@@ -13,7 +13,7 @@
   <on_reboot>restart</on_reboot>
   <on_crash>destroy</on_crash>
   <devices>
-    <emulator>/usr/bin/qemu</emulator>
+    <emulator>@QEMU@</emulator>
     <disk type='file' device='disk'>
       <source file='@PATH@/priv/buildroot-x86-ext2.fs'/>
       <target dev='hda' bus='ide'/>

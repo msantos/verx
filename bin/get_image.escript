@@ -37,7 +37,20 @@ config(File) ->
             io:format("Creating config: ~p -> ~p~n", [Dist, File]),
             {ok, Dir} = file:get_cwd(),
             {ok, Bin} = file:read_file(Dist),
-            ok = file:write_file(File, re:replace(Bin, "@PATH@", Dir, [{return, binary}]))
+
+            {ok, Qemu} =  get_qemu_path(),
+
+            Bin1 = re:replace(Bin, "@PATH@", Dir, [{return, binary}]),
+            Bin2 = re:replace(Bin1, "@QEMU@", Qemu, [{return, binary}]),
+
+            ok = file:write_file(File, Bin2)
     end.
 
-
+get_qemu_path() ->
+    Q = [ os:cmd("which " ++ N) || N <- [ "qemu", "qemu-system-i386" ] ],
+    case [ N || N <- Q, N /= [] ] of
+        [] ->
+            {error, "qemu not installed"};
+        Path ->
+            {ok, re:replace(Path, "\n", "")}
+    end.
