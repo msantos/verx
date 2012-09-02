@@ -1,6 +1,6 @@
 <domain type='qemu'>
-  <name>localvm</name>
-  <uuid>98da79eb-5b19-7be8-ca76-a1acff00e4d2</uuid>
+  <name>testvm</name>
+  <uuid>97da79eb-5b19-7be8-cb76-a1acff00e4d3</uuid>
   <memory>219136</memory>
   <currentMemory>219136</currentMemory>
   <vcpu>1</vcpu>
@@ -15,13 +15,18 @@
   <devices>
     <emulator>@QEMU@</emulator>
     <disk type='file' device='disk'>
-      <source file='@PATH@/priv/buildroot-x86-ext2.fs'/>
-      <target dev='hda' bus='ide'/>
+        <driver name='qemu' type='raw'/>
+        <source file='@PATH@' />
+        <target dev='hda' bus='ide'/>
+        <address type='drive' controller='0' bus='0' unit='0'/>
     </disk>
-    <interface type='user'>
-      <mac address='52:54:00:cb:a2:6b'/>
-    </interface>
+    @INTERFACE@
+    <serial type='pty'>
+        <target port='0'/>
+    </serial>
+    <console type='pty'>
+        <target type='serial' port='0'/>
+    </console>
     <graphics type='vnc' port='-1'/>
   </devices>
 </domain>
-

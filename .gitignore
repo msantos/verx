@@ -1,3 +1,7 @@
 *.[oa]
 *.beam
 *.swp
+ebin
+.eunit/
+deps/
+src/verx.erl

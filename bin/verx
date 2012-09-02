@@ -1,0 +1,90 @@
+#!/usr/bin/env escript
+
+%%%
+%%% Command line interface using the libvirt remote protocol
+%%%
+-include_lib("kernel/include/file.hrl").
+-include("$PWD/include/verx.hrl").
+
+main(Opt) ->
+    % load vert
+    true = code:add_pathz(filename:dirname(escript:script_name())
+        ++ "/../ebin"),
+
+    true = code:add_pathz(filename:dirname(escript:script_name())
+        ++ "/../deps/procket/ebin"),
+
+    % load srly for tcsetattr (optional)
+    code:add_pathz(filename:dirname(escript:script_name())
+        ++ "/../deps/srly/ebin"),
+
+    call(Opt).
+
+
+call(["dumpxml", Name | Arg]) ->
+    Opt = getopt(Arg),
+    Flags = proplists:get_value("flags", Opt, 0),
+    {ok, Ref} = connect(),
+    {ok, [Domain]} = verx:domain_lookup_by_id(Ref, [list_to_integer(Name)]),
+    rp(verx:domain_get_xml_desc(Ref, [Domain, Flags]));
+
+call(["list", "--all"]) ->
+    {ok, Ref} = connect(),
+
+    {ok, [NumDef]} = verx:num_of_defined_domains(Ref),
+
+    {ok, [NumRun]} = verx:num_of_domains(Ref),
+
+    {ok, [Shutoff]} = verx:list_defined_domains(Ref, [NumDef]),
+    {ok, [Running]} = verx:list_domains(Ref, [NumRun]),
+
+    rp({ok, [{running, domains(Ref, Running)},
+             {shutoff, domains(Ref, Shutoff)}]});
+
+call(["list"]) ->
+    {ok, Ref} = connect(),
+    {ok, [N]} = verx:num_of_domains(Ref),
+    {ok, [Domains]} =  verx:list_domains(Ref, [N]),
+
+    rp(domains(Ref, Domains));
+
+call(_) ->
+    Help = [
+        "dumpxml",
+        "list",
+        "list --all"
+    ],
+    rp(Help),
+    halt(1).
+
+
+%%-------------------------------------------------------------------------
+%%% Internal functions
+%%-------------------------------------------------------------------------
+rp(Term) ->
+    io:format("~p~n", [Term]).
+
+connect() ->
+    {ok, Ref} = verx_client:start_link(),
+    ok = verx:open(Ref),
+    {ok, Ref}.
+
+getopt(Opts) ->
+    getopt(Opts, []).
+getopt([], Acc) ->
+    lists:reverse(Acc);
+getopt(["--" ++ Key, "--" ++ _ = Val | Rest], Acc) ->
+    getopt([Val|Rest], [{Key, true}|Acc]);
+getopt(["--" ++ Key], Acc) ->
+    getopt([], [{Key, true}|Acc]);
+getopt(["--" ++ Key, Val | Rest], Acc) ->
+    getopt(Rest, [{Key, Val}|Acc]).
+
+domains(Ref, Domains) ->
+    [ begin
+        {ok, [{Name, UUID, Id}]} = if
+                is_integer(N) -> verx:domain_lookup_by_id(Ref, [N]);
+                is_binary(N) -> verx:domain_lookup_by_name(Ref, [N])
+            end,
+        {Name, [{uuid, UUID}, {id, Id}]}
+      end || N <- Domains ].
