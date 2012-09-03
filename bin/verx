@@ -24,12 +24,13 @@ main(Opt) ->
 call(["dumpxml", Name | Arg]) ->
     Opt = getopt(Arg),
     Flags = proplists:get_value("flags", Opt, 0),
-    {ok, Ref} = connect(),
+    {ok, Ref} = connect(Opt),
     {ok, [Domain]} = verx:domain_lookup_by_id(Ref, [list_to_integer(Name)]),
     rp(verx:domain_get_xml_desc(Ref, [Domain, Flags]));
 
-call(["list", "--all"]) ->
-    {ok, Ref} = connect(),
+call(["list", "--all" | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
 
     {ok, [NumDef]} = verx:num_of_defined_domains(Ref),
 
@@ -41,8 +42,9 @@ call(["list", "--all"]) ->
     rp({ok, [{running, domains(Ref, Running)},
              {shutoff, domains(Ref, Shutoff)}]});
 
-call(["list"]) ->
-    {ok, Ref} = connect(),
+call(["list" | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
     {ok, [N]} = verx:num_of_domains(Ref),
     {ok, [Domains]} =  verx:list_domains(Ref, [N]),
 
@@ -64,9 +66,10 @@ call(_) ->
 rp(Term) ->
     io:format("~p~n", [Term]).
 
-connect() ->
+connect(Opt) ->
+    URI = proplists:get_value("uri", Opt, "qemu:///system"),
     {ok, Ref} = verx_client:start_link(),
-    ok = verx:open(Ref),
+    ok = verx:open(Ref, [URI, 0]),
     {ok, Ref}.
 
 getopt(Opts) ->
