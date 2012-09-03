@@ -1,5 +1,5 @@
 <domain type='qemu'>
-  <name>testvm</name>
+  <name>localvm</name>
   <uuid>97da79eb-5b19-7be8-cb76-a1acff00e4d3</uuid>
   <memory>219136</memory>
   <currentMemory>219136</currentMemory>
