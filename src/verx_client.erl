@@ -62,20 +62,10 @@ call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
     Message = verx_rpc:encode(Call),
     case gen_server:call(Ref, {call, Message}, infinity) of
         {ok, Buf} ->
-            status(verx_rpc:decode(Buf));
+            verx_rpc:status(verx_rpc:decode(Buf));
         Error ->
             Error
     end.
-
-status({#remote_message_header{
-                    proc = <<?REMOTE_REPLY:32>>,
-                    status = Status
-                    }}) ->
-    verx_rpc:field(status, Status);
-status({#remote_message_header{
-                    status = Status
-                    }, Reply}) ->
-    {verx_rpc:field(status, Status), Reply}.
 
 getfd(Ref) ->
     gen_server:call(Ref, getfd).

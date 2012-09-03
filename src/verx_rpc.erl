@@ -39,7 +39,7 @@
     decode/1,
     header/1,
 
-    field/2
+    field/2, status/1
     ]).
 
 
@@ -162,6 +162,16 @@ field(serial, <<?UINT32(N)>>) -> N;
 field(status, <<?UINT32(?REMOTE_OK)>>) -> ok;
 field(status, <<?UINT32(?REMOTE_ERROR)>>) -> error;
 field(status, <<?UINT32(?REMOTE_CONTINUE)>>) -> continue.
+
+status({#remote_message_header{
+                    proc = <<?REMOTE_REPLY:32>>,
+                    status = Status
+                    }, []}) ->
+        verx_rpc:field(status, Status);
+status({#remote_message_header{
+                    status = Status
+                    }, Reply}) ->
+        {verx_rpc:field(status, Status), Reply}.
 
 %%-------------------------------------------------------------------------
 %%% Internal functions
