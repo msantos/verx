@@ -67,14 +67,14 @@ call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
             Error
     end.
 
-status([#remote_message_header{
+status({#remote_message_header{
                     proc = <<?REMOTE_REPLY:32>>,
                     status = Status
-                    }]) ->
+                    }}) ->
     verx_rpc:field(status, Status);
-status([#remote_message_header{
+status({#remote_message_header{
                     status = Status
-                    }, Reply]) ->
+                    }, Reply}) ->
     {verx_rpc:field(status, Status), Reply}.
 
 getfd(Ref) ->

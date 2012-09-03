@@ -54,7 +54,7 @@ call(Proc, Arg) when is_atom(Proc) ->
     Call = remote_protocol_xdr:enc_remote_procedure(Proc),
     CallArg = payload(enc_args(Proc), Arg),
     Header = #remote_message_header{proc = Call},
-    [Header, CallArg].
+    {Header, CallArg}.
 
 reply(Proc) ->
     call(Proc, []).
@@ -63,7 +63,7 @@ reply(Proc, Arg) when is_atom(Proc) ->
     Call = remote_protocol_xdr:enc_remote_procedure(Proc),
     CallArg = payload(enc_ret(Proc), Arg),
     Header = #remote_message_header{proc = Call, type = <<?REMOTE_REPLY:32>>},
-    [Header, CallArg].
+    {Header, CallArg}.
 
 
 %%-------------------------------------------------------------------------
@@ -78,9 +78,9 @@ reply(Proc, Arg) when is_atom(Proc) ->
 %
 % It is up to the transport layer to add the 4 byte length.
 %
-encode([#remote_message_header{} = Header, CallArg]) ->
-    encode([header(Header), CallArg]);
-encode([Header, CallArg]) ->
+encode({#remote_message_header{} = Header, CallArg}) ->
+    encode({header(Header), CallArg});
+encode({Header, CallArg}) ->
     iolist_to_binary([
             Header,
             CallArg
@@ -91,7 +91,7 @@ decode(<<Header:24/bytes, Rest/binary>>) ->
 
 % No arguments/return value
 decode(Header, <<>>) ->
-    [Header];
+    {Header, []};
 decode(#remote_message_header{proc = Proc0,
                               type = <<?REMOTE_CALL:32>>,
                               status = <<?REMOTE_OK:32>>} = Header, Rest) ->
@@ -99,10 +99,10 @@ decode(#remote_message_header{proc = Proc0,
     Args = dec_args(Proc),
 
     case Args of
-        none -> [Header];
+        none -> {Header, []};
         _ ->
             {N, _Off} = remote_protocol_xdr:Args(Rest, 0),
-            [Header, tuple_to_list(N)]
+            {Header, tuple_to_list(N)}
     end;
 decode(#remote_message_header{proc = Proc0,
                               type = <<?REMOTE_REPLY:32>>,
@@ -111,15 +111,15 @@ decode(#remote_message_header{proc = Proc0,
     Ret = dec_ret(Proc),
 
     case Ret of
-        none -> [Header];
+        none -> {Header, []};
         _ ->
             {N, _Off} = remote_protocol_xdr:Ret(Rest, 0),
-            [Header, tuple_to_list(N)]
+            {Header, tuple_to_list(N)}
     end;
 decode(#remote_message_header{type = <<?REMOTE_REPLY:32>>,
                               status = <<?REMOTE_ERROR:32>>} = Header, Rest) ->
     {N, _Off} = remote_protocol_xdr:dec_remote_error(Rest, 0),
-    [Header, tuple_to_list(N)].
+    {Header, tuple_to_list(N)}.
 
 
 %%-------------------------------------------------------------------------
