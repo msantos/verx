@@ -55,15 +55,20 @@ environment variables before running the script:
 
 ## HOW TO USE IT
 
+## libvirt documentation
+
+See <http://libvirt.org/html/libvirt-libvirt.html>
+
 ### verx
 
-    verx:Call(Ref) -> ok | {ok, Payload}
-    verx:Call(Ref, Arg) -> ok | {ok, Payload}
+    verx:Call(Ref) -> ok | {ok, Payload} | {error, Error}
+    verx:Call(Ref, Arg) -> ok | {ok, Payload} | {error, Error}
 
         Types   Call = [open, close, list_domain, ...]
                 Ref = pid()
                 Arg = [remote_protocol_args()]
                 Payload = [remote_protocol_ret()]
+                Error = [ posix() | libvirt() ]
 
     verx has a large number of functions (283). See verx.erl or the
     exports in verx:module_info() for a list.
@@ -99,7 +104,7 @@ environment variables before running the script:
 
 ### verx\_client
 
-    verx_client:start(Ref) -> {ok, Ref}
+    verx_client:start(Ref) -> {ok, Ref} | {error, posix()}
     verx_client:stop(Ref) -> ok
 
         RPC transport layer, currently only supports Unix sockets.
@@ -301,9 +306,9 @@ similar to the example in the Ruby libvirt documentation
 
 To create the remote\_protocol\_xdr.erl from a remote\_protocol.x file:
 
-    1. Copy remote\_protocol.x to priv
+1. Copy remote\_protocol.x to priv
 
-    2. Run: make clean; make
+2. Run: make clean; make
 
 If there are any errors, read through `bin/gen_remote_protocol.escript`.
 
