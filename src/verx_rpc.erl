@@ -164,7 +164,6 @@ field(status, <<?UINT32(?REMOTE_ERROR)>>) -> error;
 field(status, <<?UINT32(?REMOTE_CONTINUE)>>) -> continue.
 
 status({#remote_message_header{
-                    proc = <<?REMOTE_REPLY:32>>,
                     status = Status
                     }, []}) ->
         verx_rpc:field(status, Status);
