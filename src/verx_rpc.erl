@@ -92,34 +92,35 @@ decode(<<Header:24/bytes, Rest/binary>>) ->
 % No arguments/return value
 decode(Header, <<>>) ->
     {Header, []};
+decode(#remote_message_header{status = <<?REMOTE_ERROR:32>>} = Header, Rest) ->
+    {Header, decode_payload(dec_remote_error, Rest)};
 decode(#remote_message_header{proc = Proc0,
-                              type = <<?REMOTE_CALL:32>>,
-                              status = <<?REMOTE_OK:32>>} = Header, Rest) ->
+                              type = <<?REMOTE_CALL:32>>} = Header, Rest) ->
     {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
     Args = dec_args(Proc),
-
-    case Args of
-        none -> {Header, []};
-        _ ->
-            {N, _Off} = remote_protocol_xdr:Args(Rest, 0),
-            {Header, tuple_to_list(N)}
-    end;
+    {Header, decode_payload(Args, Rest)};
 decode(#remote_message_header{proc = Proc0,
-                              type = <<?REMOTE_REPLY:32>>,
-                              status = <<?REMOTE_OK:32>>} = Header, Rest) ->
+                              type = <<?REMOTE_REPLY:32>>} = Header, Rest) ->
     {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
     Ret = dec_ret(Proc),
+    {Header, decode_payload(Ret, Rest)};
+decode(#remote_message_header{proc = Proc0,
+                              type = <<?REMOTE_MESSAGE:32>>} = Header, Rest) ->
+    {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
+    Ret = dec_ret(Proc),
+    {Header, decode_payload(Ret, Rest)};
+decode(#remote_message_header{proc = Proc0,
+                              type = <<?REMOTE_STREAM:32>>} = Header, Rest) ->
+    {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
+    Ret = dec_ret(Proc),
+    {Header, decode_payload(Ret, Rest)}.
 
-    case Ret of
-        none -> {Header, []};
-        _ ->
-            {N, _Off} = remote_protocol_xdr:Ret(Rest, 0),
-            {Header, tuple_to_list(N)}
-    end;
-decode(#remote_message_header{type = <<?REMOTE_REPLY:32>>,
-                              status = <<?REMOTE_ERROR:32>>} = Header, Rest) ->
-    {N, _Off} = remote_protocol_xdr:dec_remote_error(Rest, 0),
-    {Header, tuple_to_list(N)}.
+% XXX shouldn't be a payload if no return values
+decode_payload(none, _Payload) ->
+    [];
+decode_payload(Fun, Payload) ->
+    {Val, _Off} = remote_protocol_xdr:Fun(Payload, 0),
+    tuple_to_list(Val).
 
 
 %%-------------------------------------------------------------------------
