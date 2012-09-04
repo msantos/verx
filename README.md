@@ -109,6 +109,15 @@ See <http://libvirt.org/html/libvirt-libvirt.html>
 
         RPC transport layer, currently only supports Unix sockets.
 
+    verx_client:download(Ref) -> {ok, Buf} | {error, posix()}
+
+        Types   Ref = pid
+                Buf = [binary()]
+
+        Returns streamed data. The stream must first be prepared
+        by making the appropriate remote protocol call, e.g.,
+        verx:domain_snapshot/2.
+
 ### verx\_rpc
 
 
@@ -300,6 +309,38 @@ similar to the example in the Ruby libvirt documentation
         error_logger:info_report([{call, Call}] ++ N);
     result(Call, {error, _Error} = N) ->
         error_logger:error_report([{call, Call}] ++ N).
+
+### TAKING A SCREENSHOT
+
+Here is an example of using the libvirt stream interface.
+
+    -module(ss).
+    -export([host/1]).
+
+    host(Name) when is_list(Name) ->
+        host(list_to_binary(Name));
+    host(Name) when is_binary(Name) ->
+        {ok, Ref} = verx_client:start(),
+        ok = verx:open(Ref),
+
+        {ok, [Domain]} = verx:domain_lookup_by_name(Ref, [Name]),
+
+        Screen = 0,
+        Flags = 0,
+
+        {ok, [Mime]} = verx:domain_screenshot(Ref, [Domain, Screen, Flags]),
+
+        Ext = case Mime of
+            <<"image/x-portable-pixmap">> -> <<".ppm">>;
+            _ -> <<".screen">>
+        end,
+
+        {ok, Buf} = verx_client:download(Ref),
+
+        File = <<Name/binary, Ext/binary>>,
+        ok = file:write_file(File, Buf),
+
+        {ok, Mime, File}.
 
 
 ## GENERATING THE REMOTE PROTOCOL MODULE

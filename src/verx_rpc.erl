@@ -109,11 +109,15 @@ decode(#remote_message_header{proc = Proc0,
     {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
     Ret = dec_ret(Proc),
     {Header, decode_payload(Ret, Rest)};
-decode(#remote_message_header{proc = Proc0,
-                              type = <<?REMOTE_STREAM:32>>} = Header, Rest) ->
-    {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
-    Ret = dec_ret(Proc),
-    {Header, decode_payload(Ret, Rest)}.
+
+% streams: eof
+decode(#remote_message_header{type = <<?REMOTE_STREAM:32>>,
+                              status = <<?REMOTE_CONTINUE:32>>} = Header, <<>>) ->
+    {Header, []};
+% streams: contains binary data
+decode(#remote_message_header{type = <<?REMOTE_STREAM:32>>,
+                              status = <<?REMOTE_CONTINUE:32>>} = Header, Rest) ->
+    {Header, Rest}.
 
 % XXX shouldn't be a payload if no return values
 decode_payload(none, _Payload) ->

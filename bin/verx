@@ -73,6 +73,23 @@ call(["list" | Arg]) ->
 
     rp(domains(Ref, Domains));
 
+call(["screenshot", Name | Arg]) ->
+    Opt = getopt(Arg),
+    Screen = proplists:get_value("screen", Opt, 0),
+    Flags = proplists:get_value("flags", Opt, 0),
+    File = proplists:get_value("file", Opt,
+            Name ++ "_" ++ os:getpid() ++ ".screen"),
+    {ok, Ref} = connect(Opt),
+
+    {ok, [Domain]} = lookup(Ref, {domain, Name}),
+
+    {ok, Mime} = verx:domain_screenshot(Ref, [Domain, Screen, Flags]),
+    {ok, Buf} = verx_client:download(Ref),
+
+    ok = file:write_file(File, Buf),
+
+    rp({ok, Mime, File});
+
 call(["shutdown", Name | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
@@ -89,10 +106,11 @@ call(_) ->
     Help = [
         "create",
         "define",
+        "destroy",
         "dumpxml",
         "list",
         "list --all"
-        "destroy",
+        "screenshot",
         "undefine"
     ],
     rp(Help),
