@@ -84,7 +84,7 @@ call(["screenshot", Name | Arg]) ->
     {ok, [Domain]} = lookup(Ref, {domain, Name}),
 
     {ok, Mime} = verx:domain_screenshot(Ref, [Domain, Screen, Flags]),
-    {ok, Buf} = verx_client:download(Ref),
+    {ok, Buf} = verx_client:recv(Ref),
 
     ok = file:write_file(File, Buf),
 

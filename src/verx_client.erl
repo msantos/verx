@@ -37,8 +37,8 @@
 -export([
     call/2, call/3,
 
-    download/1,
-    upload/2,
+    recv/1,
+    send/2,
 
     getfd/1
     ]).
@@ -72,11 +72,11 @@ call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
     end.
 
 % XXX handle in caller or in gen_server?
-download(Ref) ->
+recv(Ref) ->
     FD = getfd(Ref),
-    download(FD, []).
+    recv(FD, []).
 
-download(FD, Acc) ->
+recv(FD, Acc) ->
     case verx_client:read_packet(FD) of
         {ok, Bin} ->
             case verx_rpc:decode(Bin) of
@@ -87,21 +87,21 @@ download(FD, Acc) ->
                 {#remote_message_header{
                                 type = <<?REMOTE_STREAM:32>>,
                                 status = <<?REMOTE_CONTINUE:32>>}, Payload} ->
-                    download(FD, [Payload|Acc])
+                    recv(FD, [Payload|Acc])
             end;
         Error ->
             Error
     end.
 
-upload(Ref, Buf) when is_list(Buf) ->
+send(Ref, Buf) when is_list(Buf) ->
     FD = getfd(Ref),
-    upload_1(FD, Buf).
+    send_1(FD, Buf).
 
-upload_1(_FD, []) ->
+send_1(_FD, []) ->
     ok;
-upload_1(FD, [Buf|Rest]) when is_binary(Buf) ->
+send_1(FD, [Buf|Rest]) when is_binary(Buf) ->
     ok = procket:write(FD, Buf),
-    upload_1(FD, Rest).
+    send_1(FD, Rest).
 
 getfd(Ref) ->
     gen_server:call(Ref, getfd).

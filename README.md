@@ -109,7 +109,7 @@ See <http://libvirt.org/html/libvirt-libvirt.html>
 
         RPC transport layer, currently only supports Unix sockets.
 
-    verx_client:download(Ref) -> {ok, Buf} | {error, posix()}
+    verx_client:recv(Ref) -> {ok, Buf} | {error, posix()}
 
         Types   Ref = pid
                 Buf = [binary()]
@@ -335,7 +335,7 @@ Here is an example of using the libvirt stream interface.
             _ -> <<".screen">>
         end,
 
-        {ok, Buf} = verx_client:download(Ref),
+        {ok, Buf} = verx_client:recv(Ref),
 
         File = <<Name/binary, Ext/binary>>,
         ok = file:write_file(File, Buf),
