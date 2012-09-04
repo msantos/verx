@@ -60,6 +60,18 @@ create_list_destroy_test() ->
     error_logger:info_report([{running, info(Ref, Running)},
                               {shutoff, info(Ref, Shutoff)}]),
 
+
+    error_logger:info_report([{running, verx:domain_get_info(Ref, [Domain])}]),
+
+    ok = verx:domain_suspend(Ref, [Domain]),
+    error_logger:info_report([{suspended, verx:domain_get_info(Ref, [Domain])}]),
+
+    ok = verx:domain_resume(Ref, [Domain]),
+    error_logger:info_report([{resumed, verx:domain_get_info(Ref, [Domain])}]),
+
+    ok = verx:domain_shutdown(Ref, [Domain]),
+    error_logger:info_report([{shutdown, verx:domain_get_info(Ref, [Domain])}]),
+
     ok = verx:domain_destroy(Ref, [Domain]),
 
     verx:close(Ref),
