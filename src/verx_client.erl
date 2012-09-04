@@ -38,7 +38,7 @@
     call/2, call/3,
     getfd/1
     ]).
--export([read_packet/1]).
+-export([read_packet/1, read_packet/2]).
 -export([start_link/0, start_link/1]).
 -export([start/0, start/1, stop/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -139,8 +139,14 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Utility functions
 %%-------------------------------------------------------------------------
 read_packet(Socket) ->
-    {ok, <<?UINT32(Len)>>} = read_all(Socket, ?REMOTE_MESSAGE_HEADER_XDR_LEN),
-    read_all(Socket, Len - ?REMOTE_MESSAGE_HEADER_XDR_LEN).
+    read_packet(Socket, 1000).
+read_packet(Socket, Timeout) when is_integer(Socket) ->
+    case read_all(Socket, ?REMOTE_MESSAGE_HEADER_XDR_LEN, Timeout) of
+        {ok, <<?UINT32(Len)>>} ->
+            read_all(Socket, Len - ?REMOTE_MESSAGE_HEADER_XDR_LEN, Timeout);
+        Error ->
+            Error
+    end.
 
 
 %%-------------------------------------------------------------------------
@@ -151,18 +157,19 @@ maybe_binary(N) when is_binary(N) ->
 maybe_binary(N) when is_list(N) ->
     list_to_binary(N).
 
-read_all(Socket, Len) ->
-    read_all(Socket, Len, []).
-read_all(Socket, Len, Acc) ->
+read_all(Socket, Len, Timeout) ->
+    read_all(Socket, Len, Timeout, []).
+read_all(Socket, Len, Timeout, Acc) ->
     case procket:read(Socket, Len) of
         {ok, Buf} when Len - byte_size(Buf) =:= 0 ->
             {ok, list_to_binary(lists:reverse([Buf|Acc]))};
         {ok, Buf} ->
-            read_all(Socket, Len - byte_size(Buf), [Buf|Acc]);
+            read_all(Socket, Len - byte_size(Buf), Timeout, [Buf|Acc]);
+        {error, eagain} when Timeout =< 0 ->
+            {error, eagain};
         {error, eagain} ->
-            % XXX can spin forever here
             timer:sleep(10),
-            read_all(Socket, Len, Acc);
+            read_all(Socket, Len, Timeout - 10, Acc);
         Error ->
             Error
     end.
