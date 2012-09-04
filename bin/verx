@@ -14,6 +14,9 @@ main(Opt) ->
     true = code:add_pathz(filename:dirname(escript:script_name())
         ++ "/../deps/procket/ebin"),
 
+    true = code:add_pathz(filename:dirname(escript:script_name())
+        ++ "/../deps/uuid/ebin"),
+
     % load srly for tcsetattr (optional)
     code:add_pathz(filename:dirname(escript:script_name())
         ++ "/../deps/srly/ebin"),
@@ -146,12 +149,13 @@ domains(Ref, Domains) ->
                 is_integer(N) -> verx:domain_lookup_by_id(Ref, [N]);
                 is_binary(N) -> verx:domain_lookup_by_name(Ref, [N])
             end,
-        {Name, [{uuid, UUID}, {id, Id}]}
+        {Name, [{uuid, uuid:uuid_to_string(UUID)}, {id, Id}]}
       end || N <- Domains ].
 
 lookup(Ref, {domain, Name}) ->
     Fun = [ fun() -> verx:domain_lookup_by_id(Ref, [list_to_integer(Name)]) end,
-            fun() -> verx:domain_lookup_by_name(Ref, [list_to_binary(Name)]) end ],
+            fun() -> verx:domain_lookup_by_name(Ref, [list_to_binary(Name)]) end,
+            fun() -> verx:domain_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end ],
     lookup_1(Fun).
 
 lookup_1(Fun)  ->
