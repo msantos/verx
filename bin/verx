@@ -20,12 +20,35 @@ main(Opt) ->
 
     call(Opt).
 
+call(["create", Name | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+
+    {ok, [Domain]} = case file:read_file(Name) of
+        {ok, XML} ->
+            verx:domain_define_xml(Ref, [XML]);
+        {error, enoent} ->
+            lookup(Ref, {domain, Name})
+        end,
+    rp(verx:domain_create(Ref, [Domain]));
+
+call(["define", File | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+    {ok, XML} = file:read_file(File),
+    rp(verx:domain_define_xml(Ref, [XML]));
+
+call(["destroy", Name | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+    {ok, [Domain]} = lookup(Ref, {domain, Name}),
+    rp(verx:domain_destroy(Ref, [Domain]));
 
 call(["dumpxml", Name | Arg]) ->
     Opt = getopt(Arg),
     Flags = proplists:get_value("flags", Opt, 0),
     {ok, Ref} = connect(Opt),
-    {ok, [Domain]} = verx:domain_lookup_by_id(Ref, [list_to_integer(Name)]),
+    {ok, [Domain]} = lookup(Ref, {domain, Name}),
     rp(verx:domain_get_xml_desc(Ref, [Domain, Flags]));
 
 call(["list", "--all" | Arg]) ->
@@ -50,11 +73,27 @@ call(["list" | Arg]) ->
 
     rp(domains(Ref, Domains));
 
+call(["shutdown", Name | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+    {ok, [Domain]} = lookup(Ref, {domain, Name}),
+    rp(verx:domain_shutdown(Ref, [Domain]));
+
+call(["undefine", Name | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+    {ok, [Domain]} = lookup(Ref, {domain, Name}),
+    rp(verx:domain_undefine(Ref, [Domain]));
+
 call(_) ->
     Help = [
+        "create",
+        "define",
         "dumpxml",
         "list",
         "list --all"
+        "destroy",
+        "undefine"
     ],
     rp(Help),
     halt(1).
@@ -91,3 +130,23 @@ domains(Ref, Domains) ->
             end,
         {Name, [{uuid, UUID}, {id, Id}]}
       end || N <- Domains ].
+
+lookup(Ref, {domain, Name}) ->
+    Fun = [ fun() -> verx:domain_lookup_by_id(Ref, [list_to_integer(Name)]) end,
+            fun() -> verx:domain_lookup_by_name(Ref, [list_to_binary(Name)]) end ],
+    lookup_1(Fun).
+
+lookup_1(Fun)  ->
+    lookup_1(Fun, []).
+lookup_1([], [{error, Error}|_]) ->
+    {error, Error};
+lookup_1([Fun|Tail], Acc) ->
+    try Fun() of
+        {ok, Res} ->
+            {ok, Res};
+        {error, Error} ->
+            lookup_1(Tail, [{error, Error}|Acc])
+    catch
+        _:_ ->
+            lookup_1(Tail, Acc)
+    end.
