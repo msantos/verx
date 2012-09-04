@@ -6,8 +6,8 @@
 
 %% Environment Variables
 %%
-%% VERT_QEMU_BIN : path to the qemu binary (default: /usr/bin/kvm)
-%% VERT_BRIDGE_INTERFACE : bridge interface (default: user networking)
+%% VERX_QEMU_BIN : path to the qemu binary (default: /usr/bin/kvm)
+%% VERX_BRIDGE_INTERFACE : bridge interface (default: user networking)
 
 main(_) ->
     inets:start(),
@@ -62,7 +62,7 @@ config(Cfg, File) ->
     end.
 
 get_qemu_path() ->
-    Qemu = os:getenv("VERT_QEMU_BIN"),
+    Qemu = os:getenv("VERX_QEMU_BIN"),
 
     case Qemu of
         false -> "/usr/bin/kvm";
@@ -70,7 +70,7 @@ get_qemu_path() ->
     end.
 
 get_interface() ->
-    Bridge = os:getenv("VERT_BRIDGE_INTERFACE"),
+    Bridge = os:getenv("VERX_BRIDGE_INTERFACE"),
     interface(Bridge).
 
 interface(false) ->

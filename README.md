@@ -4,79 +4,208 @@ For an Erlang binding to the C libvirt interface, see:
 
 <https://github.com/msantos/erlang-libvirt>
 
+
 ## WARNING
+
+remote\_protocol.x contains this warning:
+
+    (1) The protocol is internal and may change at any time, without
+    notice.  Do not use it.  Instead link to libvirt and use the remote
+    driver.
+
+<http://libvirt.org/git/?p=libvirt.git;a=blob_plain;f=src/remote/remote_protocol.x;hb=HEAD>
+
+However, see the section "GENERATING THE REMOTE PROTOCOL MODULE" below for
+instructions on recompiling the XDR protocol spec if any changes occur.
+
+The RPC protocol is documented here:
+
+<http://libvirt.org/internals/rpc.html>
+
+For the remote support documentation:
+
+<http://libvirt.org/remote.html>
+
+The version of remote\_protocol.x used was taken from libvirt master
+(around v0.9.9-rc2, SHA commit ca5c99aecbecc832ed1a5bc630c7a3b8e13f4344).
 
 ## HOW TO BUILD IT
 
-make
+    make
+
+See "GENERATING THE REMOTE PROTOCOL MODULE" to rebuild the XDR protocol
+parser.
+
+## CREATING A TEST VM
+
+If you don't have a VM ready to test, you can download a test image
+by running:
+
+    bin/get_image.escript
+
+The script will download an OpenWRT image and set up the configuration
+in priv/example.xml. By default, it will set up the VM to run under
+KVM using user mode networking.
+
+You can manually modify the configuration afterwards or set these
+environment variables before running the script:
+
+    VERX_QEMU_BIN : path to the qemu binary (default: /usr/bin/kvm)
+    VERX_BRIDGE_INTERFACE : bridge interface (default: user networking)
 
 ## HOW TO USE IT
 
+### verx
+
+    verx:Call(Ref) -> ok | {ok, Payload}
+    verx:Call(Ref, Arg) -> ok | {ok, Payload}
+
+        Types   Call = [open, close, list_domain, ...]
+                Ref = pid()
+                Arg = [remote_protocol_args()]
+                Payload = [remote_protocol_ret()]
+
+    verx has a large number of functions (283). See verx.erl or the
+    exports in verx:module_info() for a list.
+
+    The Ref is pid of the verx_client.
+
+    Understanding the arguments for a remote protocol call takes some
+    work.  For example, for verx:domain_define_xml/2, here are some
+    places to look at:
+
+        * check verx.erl for the arity
+
+        * check remote_protocol_xdr.erl for the argument format. The
+          parsing function is prefaced with "enc_remote_" and ends with
+          "_args":
+
+            enc_remote_domain_define_xml_args/1
+
+        * check the XDR protocol file, remote_protocol.x:
+
+            struct remote_domain_define_xml_args {
+                remote_nonnull_string xml;
+            };
+
+        * look at the libvirt documentation. Generally the libvirt
+          counterpart is camelcased and prefaced with "vir":
+
+            virDomainDefineXML
+
+    Similarly, for the call return values, search for the
+    suffix "_ret", e.g., dec_remote_domain_define_xml_ret and
+    remote_domain_define_xml_ret.
+
+### verx\_client
+
+    verx_client:start(Ref) -> {ok, Ref}
+    verx_client:stop(Ref) -> ok
+
+        RPC transport layer, currently only supports Unix sockets.
+
+### verx\_rpc
+
+
 ## EXAMPLES
+
+### OPEN A CONNECTION TO LIBVIRTD
+
+    % Connect to the libvirtd socket
+    {ok, Ref} = verx_client:start(),
+
+    % libvirt remote procotol open message
+    % by default to qemu:///system
+    ok = verx:open(Ref),
+
+    % send a close message
+    ok = verx:close(Ref),
+
+    % send a remote protocol open message
+    %  connecting to lxc containers
+    ok = verx:open(Ref, ["lxc:///", 0]),
+
+    % close and stop the transport
+    ok = verx:close(Ref),
+    ok = verx_client:stop(Ref).
 
 ### CREATING A DOMAIN
 
-To download a test image, run:
+    -module(crvm).
+    -export([file/0]).
 
-    escript bin/get_image.escript
+    file() ->
+        file("priv/example.xml").
+    file(Path) ->
+        % Connect to the libvirtd socket
+        {ok, Ref} = verx_client:start(),
 
-verx has some convenience functions that wrap call/2 and call/3. This
-function will start a VM using defaults:
+        % libvirt remote procotol open message
+        ok = verx:open(Ref),
 
-    start() ->
-        {ok, Ref} = verx:start(),
+        {ok, XML} = file:read_file(Path),
 
-        {ok, Domain} = verx:create(Ref),
+        % Domain is defined but not running
+        {ok, [Domain]} = verx:domain_define_xml(Ref, [XML]),
 
-        Dom = proplists:get_value(dom, Domain),
-        UUID = proplists:get_value(uuid, Dom),
+        % Start the VM
+        ok = verx:domain_create(Ref, [Domain]),
 
-        Active = verx:list_domains(Ref),
+        {ok, [Active] = verx:num_of_domains(Ref),
         io:format("Active Domains: ~p~n", [Active]),
 
-        {Ref, UUID}.
+        % Send a protocol close message
+        ok = verx:close(R),
 
-Or directly using call/3:
+        % Close the socket
+        ok = verx_client:stop(R),
 
-    start(Path) ->
-        {ok, Ref} = verx:start(),
+        {ok, Domain}.
 
-        {ok, Cfg} = file:read_file(Path),
+To list the VMs:
 
-        % for the arguments, see remote_protocol.x or the
-        % output from: verx_args:param(domain_create_xml)
+    -module(lsvm).
+    -export([ls/0]).
 
-        {ok, Domain} = verx:call(Ref, domain_create_xml, [
-                {remote_nonnull_string, Cfg},   % XML
-                {int, 0}                        % Flags
-            ]),
+    ls() ->
+        {ok, Ref} = verx_client:start(),
+        ok = verx:open(Ref),
 
-        Dom = proplists:get_value(dom, Domain),
-        UUID = proplists:get_value(uuid, Dom),
+        {ok, [NumDef]} = verx:num_of_defined_domains(Ref),
 
-        Active = verx:call(Ref, list_domains, [
-                {int, 10}                       % Max domains to return
-            ]),
-        io:format("Active Domains: ~p~n", [Active]),
+        {ok, [NumRun]} = verx:num_of_domains(Ref),
 
-        {Ref, UUID}.
+        {ok, [Shutoff]} = verx:list_defined_domains(Ref, [NumDef]),
+        {ok, [Running]} = verx:list_domains(Ref, [NumRun]),
+
+        {ok, [{running, info(Ref, Running)},
+                 {shutoff, info(Ref, Shutoff)}]}.
+
+    info(Ref, Domains) ->
+        [ begin
+            {ok, [{Name, UUID, Id}]} = verx:domain_lookup_by_id(Ref, [N]),
+            {Name, [{uuid, UUID}, {id, Id}]}
+          end || N <- Domains ].
 
 To shutdown the VM:
 
-    halt(Ref, UUID) ->
-        verx:destroy(Ref, UUID),
-        verx:stop(Ref).
+    % Get the domain resource
+    lookup(Ref, Id) when is_integer(Id) ->
+        {ok, [Domain]} = verx:domain_lookup_by_id(Ref, [Id]),
+        {ok, Domain};
 
-Or using the call inteface:
+    lookup(Ref, Name) when is_binary(Name) ->
+        {ok, [Domain]} = verx:domain_lookup_by_name(Ref, [Name]),
+        {ok, Domain}.
 
-    halt(Ref, UUID) ->
-        verx:call(Ref, domain_destroy, [
-                {string, ""},       % name
-                {remote_uuid, UUID},
-                {int, 0}
-                ]),
-        verx:stop(Ref).
+    halt(Ref, Domain) ->
+        % shutdown only works if acpid is installed in the VM
+        ok = verx:domain_shutdown(R, [Domain]),
+        verx:domain_destroy(Ref, [Domain]).
 
+To remove the VM, undefine it:
+
+        verx:domain_undefine(Ref, [Domain])
 
 ### SUSPENDING AND RESUMING A DOMAIN
 
@@ -85,40 +214,46 @@ running domain. The example is taken from:
 
 <http://www.ibm.com/developerworks/linux/library/l-libvirt/>
 
-
     -module(ex6).
-    
-    -export([start/0]).
-    
+
+    -export([start/0, states/2]).
+
     start() ->
-        {ok, Ref} = verx:start(),
-        % Return at most 10 domains
-        {ok, [{ids, Ids}]} = verx:call(Ref, list_domains, [{int, 10}]),
+        {ok, Ref} = verx_client:start(),
+        ok = verx:open(Ref),
+
+        {ok, [Num]} = verx:num_of_domains(Ref),
+        {ok, [Ids]} = verx:list_domains(Ref, [Num]),
+
         [ states(Ref, Id) || Id <- Ids ],
         ok.
-    
+
     states(Ref, Id) ->
-        {ok, [{dom, Attr}]} = verx:call(Ref, domain_lookup_by_id, [{int, Id}]),
-    
-        Name = proplists:get_value(name, Attr),
-        UUID = proplists:get_value(uuid, Attr),
-    
-        Dom = [
-            {string, Name},
-            {remote_uuid, UUID},
-            {int, Id}
-        ],
-    
-        io:format("running: ~p~n", [verx:call(Ref, domain_get_info, Dom)]),
-    
-        {ok, void} = verx:call(Ref, domain_suspend, Dom),
-        io:format("suspend: ~p~n", [verx:call(Ref, domain_get_info, Dom)]),
-    
-        {ok, void} = verx:call(Ref, domain_resume, Dom),
-        io:format("resumed: ~p~n", [verx:call(Ref, domain_get_info, Dom)]),
-    
-        {ok, void} = verx:call(Ref, domain_destroy, Dom),
-        io:format("destroyed: ~p~n", [verx:call(Ref, domain_get_info, Dom)]).
+        {ok, [Domain]} = verx:domain_lookup_by_id(Ref, [Id]),
+
+        % return value of domain_get_info from remote_protocol.x:
+        %
+        % struct remote_domain_get_info_ret {
+        %   unsigned char state;
+        %   unsigned hyper maxMem;
+        %   unsigned hyper memory;
+        %   unsigned short nrVirtCpu;
+        %   unsigned hyper cpuTime;
+        % };
+
+        io:format("running: ~p~n", [verx:domain_get_info(Ref, [Domain])]),
+
+        ok = verx:domain_suspend(Ref, [Domain]),
+        io:format("suspended: ~p~n", [verx:domain_get_info(Ref, [Domain])]),
+
+        ok = verx:domain_resume(Ref, [Domain]),
+        io:format("resumed: ~p~n", [verx:domain_get_info(Ref, [Domain])]),
+
+        ok = verx:domain_shutdown(Ref, [Domain]),
+        io:format("shutdown: ~p~n", [verx:domain_get_info(Ref, [Domain])]),
+
+        ok = verx:domain_destroy(Ref, [Domain]),
+        io:format("destroyed: ~p~n", [verx:domain_get_info(Ref, [Domain])]).
 
 
 ### RETRIEVING HYPERVISOR INFORMATION
@@ -128,33 +263,63 @@ similar to the example in the Ruby libvirt documentation
 (<http://libvirt.org/ruby/examples/node_info.rb>):
 
     -module(node_info).
-    -compile(export_all).
-    
-    -include("verx.hrl").
-    
-    
+    -export([start/0]).
+
     start() ->
-        {ok, Ref} = verx:start(),
-        
-        [ result(N, verx:call(Ref, N)) || N <- [
-            node_get_info,
-            node_get_cells_free_memory,
-            get_version,
-            get_lib_version,
-            get_hostname,
-            get_uri,
-            node_get_free_memory,
-            node_get_security_model,
-            is_secure,
-            get_capabilities
-        ] ],
-    
-        verx:stop(Ref).
+        {ok, Ref} = verx_client:start(),
+        ok = verx:open(Ref),
 
-    result(Op, {ok, N}) ->
-        error_logger:info_report([{op, Op}] ++ N);
-    result(Op, {error, _Error} = N) ->
-        error_logger:error_report([{op, Op}] ++ [N]).
+        [ begin
+                Reply = case Proc of
+                    {Call, Arg} -> verx:Call(Ref, Arg);
+                    Call -> verx:Call(Ref)
+                end,
+                result(Proc, Reply)
+          end || Proc <- [
+                    node_get_info,
+                    {node_get_cells_free_memory, [0, 100]},
+                    get_version,
+                    get_lib_version,
+                    get_hostname,
+                    get_uri,
+                    node_get_free_memory,
+                    node_get_security_model,
+                    is_secure,
+                    get_capabilities
+                    ] ],
 
+        ok = verx:close(Ref),
+        verx_client:stop(Ref).
+
+    result(Call, {ok, N}) ->
+        error_logger:info_report([{call, Call}] ++ N);
+    result(Call, {error, _Error} = N) ->
+        error_logger:error_report([{call, Call}] ++ N).
+
+
+## GENERATING THE REMOTE PROTOCOL MODULE
+
+To create the remote\_protocol\_xdr.erl from a remote\_protocol.x file:
+
+    1. Copy remote\_protocol.x to priv
+
+    2. Run: make clean; make
+
+If there are any errors, read through `bin/gen_remote_protocol.escript`.
 
 ## TODO
+
+* fix broken include paths for bin/verx, include/verx.hrl
+
+* transport protocols
+    * TCP
+    * SSL
+    * SSH
+
+* increment the serial number in the message header
+
+* continue status
+    * upload stream
+    * bidirectional stream
+    * overlapping
+    * passed fd
