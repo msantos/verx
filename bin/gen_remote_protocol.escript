@@ -72,8 +72,7 @@ generate_xdr(Src, Dst) ->
 % Hacks to get the remote protocol file to compile
 mangle_file(Bin) ->
     lists:foldl(fun({RE, Swap}, XDR) ->
-                  Replace = if is_integer(Swap) -> integer_to_list(Swap);
-                               true -> Swap end,
+                  Replace = maybe_list(Swap),
                   re:replace(XDR, RE, Replace, [global, multiline])
                   end,
                   Bin,
@@ -87,3 +86,6 @@ move_hrl(Src, Dst) ->
     io:format("~s -> ~s~n", [Src, Dst]),
     {ok, _} = file:copy(Src, Dst),
     ok = file:delete(Src).
+
+maybe_list(N) when is_list(N) -> N;
+maybe_list(N) when is_integer(N) -> integer_to_list(N).
