@@ -35,22 +35,15 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("verx.hrl").
 
-create_list_destroy_test() ->
-    {ok, Ref} = verx_client:start(),
-    ok = verx:open(Ref),
+vert_test_() ->
+    {setup,
+     fun create/0,
+     fun destroy/1,
+     fun(N) -> [?_test(domain_list_info(N)),
+                 ?_test(screenshot(N))] end
+    }.
 
-    Path = filename:join([
-            filename:dirname(code:which(vert)),
-            "..",
-            "priv",
-            "example.xml"
-            ]),
-
-    {ok, XML} = file:read_file(Path),
-
-    {ok, [Domain]} = verx:domain_define_xml(Ref, [XML]),
-    ok = verx:domain_create(Ref, [Domain]),
-
+domain_list_info({Ref, Domain}) ->
     {ok, [NumDef]} = verx:num_of_defined_domains(Ref),
     {ok, [NumRun]} = verx:num_of_domains(Ref),
 
@@ -72,13 +65,51 @@ create_list_destroy_test() ->
     ok = verx:domain_shutdown(Ref, [Domain]),
     error_logger:info_report([{shutdown, verx:domain_get_info(Ref, [Domain])}]),
 
-    ok = verx:domain_destroy(Ref, [Domain]),
-
-    verx:close(Ref),
-    verx_client:stop(Ref).
+    ok.
 
 info(Ref, Domains) ->
     [ begin
         {ok, [{Name, UUID, Id}]} = verx:domain_lookup_by_id(Ref, [N]),
         {Name, [{uuid, UUID}, {id, Id}]}
       end || N <- Domains ].
+
+screenshot({Ref, Domain}) ->
+    {ok, [Mime]} = verx:domain_screenshot(Ref, [Domain,0,0]),
+
+    Ext = case Mime of
+        <<"image/x-portable-pixmap">> -> <<".ppm">>;
+        _ -> <<".screen">>
+    end,
+
+    {ok, Buf} = verx_client:recv(Ref),
+
+    File = <<"localvm", Ext/binary>>,
+    ok = file:write_file(File, Buf),
+
+    {ok, Mime, File}.
+
+
+%%-------------------------------------------------------------------------
+%%% Internal functions
+%%-------------------------------------------------------------------------
+create() ->
+    {ok, Ref} = verx_client:start(),
+    ok = verx:open(Ref),
+
+    Path = filename:join([
+            filename:dirname(code:which(vert)),
+            "..",
+            "priv",
+            "example.xml"
+            ]),
+
+    {ok, XML} = file:read_file(Path),
+
+    {ok, [Domain]} = verx:domain_define_xml(Ref, [XML]),
+    ok = verx:domain_create(Ref, [Domain]),
+    {Ref, Domain}.
+
+destroy({Ref, Domain})  ->
+    ok = verx:domain_destroy(Ref, [Domain]),
+    verx:close(Ref),
+    verx_client:stop(Ref).
