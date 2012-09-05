@@ -41,10 +41,12 @@
 -define(REMOTE_MESSAGE_HEADER_XDR_LEN, 4).
 
 %% remote_message_type
--define(REMOTE_CALL, 0).
--define(REMOTE_REPLY, 1).
--define(REMOTE_MESSAGE, 2).
--define(REMOTE_STREAM, 3).
+-define(REMOTE_CALL, 0).            % client -> server. args from a method call
+-define(REMOTE_REPLY, 1).           % server -> client. reply/error from a method call
+-define(REMOTE_MESSAGE, 2).         % either direction. async notification
+-define(REMOTE_STREAM, 3).          % either direction. stream data packet
+-define(REMOTE_CALL_WITH_FDS, 4).   % client -> server. args from a method call, with passed FDs
+-define(REMOTE_REPLY_WITH_FDS, 5).  % server -> client. reply/error from a method call, with passed FDs
 
 %% remote_message_status
 -define(REMOTE_OK, 0).

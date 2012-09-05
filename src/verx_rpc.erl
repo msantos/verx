@@ -52,7 +52,7 @@ call(Proc) ->
 
 call(Proc, Arg) when is_atom(Proc) ->
     Call = remote_protocol_xdr:enc_remote_procedure(Proc),
-    CallArg = payload(enc_args(Proc), Arg),
+    CallArg = payload(proc_to_call(Proc, "enc", "args"), Arg),
     Header = #remote_message_header{proc = Call},
     {Header, CallArg}.
 
@@ -61,7 +61,7 @@ reply(Proc) ->
 
 reply(Proc, Arg) when is_atom(Proc) ->
     Call = remote_protocol_xdr:enc_remote_procedure(Proc),
-    CallArg = payload(enc_ret(Proc), Arg),
+    CallArg = payload(proc_to_call(Proc, "enc", "ret"), Arg),
     Header = #remote_message_header{proc = Call, type = <<?REMOTE_REPLY:32>>},
     {Header, CallArg}.
 
@@ -86,38 +86,69 @@ encode({Header, CallArg}) ->
             CallArg
             ]).
 
-decode(<<Header:24/bytes, Rest/binary>>) ->
+decode(<<Header:?REMOTE_MESSAGE_HEADER_MAX/bytes, Rest/binary>>) ->
     decode(header(Header), Rest).
 
-% No arguments/return value
-decode(Header, <<>>) ->
-    {Header, []};
-decode(#remote_message_header{status = <<?REMOTE_ERROR:32>>} = Header, Rest) ->
-    {Header, decode_payload(dec_remote_error, Rest)};
+% REMOTE_CALL
 decode(#remote_message_header{proc = Proc0,
-                              type = <<?REMOTE_CALL:32>>} = Header, Rest) ->
+                              type = <<?REMOTE_CALL:32>>,
+                              status = <<?REMOTE_OK:32>>
+                             } = Header, Rest) ->
     {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
-    Args = dec_args(Proc),
+    Args = proc_to_call(Proc, "dec", "args"),
     {Header, decode_payload(Args, Rest)};
+
+% REMOTE_REPLY
 decode(#remote_message_header{proc = Proc0,
-                              type = <<?REMOTE_REPLY:32>>} = Header, Rest) ->
+                              type = <<?REMOTE_REPLY:32>>,
+                              status = <<?REMOTE_OK:32>>} = Header, Rest) ->
     {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
-    Ret = dec_ret(Proc),
+    Ret = proc_to_call(Proc, "dec", "ret"),
     {Header, decode_payload(Ret, Rest)};
+decode(#remote_message_header{type = <<?REMOTE_REPLY:32>>,
+                              status = <<?REMOTE_ERROR:32>>} = Header, Rest) ->
+    {Header, decode_payload(dec_remote_error, Rest)};
+
+% REMOTE_MESSAGE
 decode(#remote_message_header{proc = Proc0,
-                              type = <<?REMOTE_MESSAGE:32>>} = Header, Rest) ->
+                              type = <<?REMOTE_MESSAGE:32>>,
+                              status = <<?REMOTE_OK:32>>} = Header, Rest) ->
     {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
-    Ret = dec_ret(Proc),
+    Ret = proc_to_call(Proc, "dec", "msg"),
     {Header, decode_payload(Ret, Rest)};
 
-% streams: eof
-decode(#remote_message_header{type = <<?REMOTE_STREAM:32>>,
-                              status = <<?REMOTE_CONTINUE:32>>} = Header, <<>>) ->
-    {Header, []};
-% streams: contains binary data
+% REMOTE_STREAM
+% contains binary data
 decode(#remote_message_header{type = <<?REMOTE_STREAM:32>>,
                               status = <<?REMOTE_CONTINUE:32>>} = Header, Rest) ->
-    {Header, Rest}.
+    {Header, Rest};
+% error
+decode(#remote_message_header{type = <<?REMOTE_STREAM:32>>,
+                              status = <<?REMOTE_ERROR:32>>} = Header, Rest) ->
+    {Header, decode_payload(dec_remote_error, Rest)};
+% eof
+decode(#remote_message_header{type = <<?REMOTE_STREAM:32>>,
+                              status = <<?REMOTE_OK:32>>} = Header, <<>>) ->
+    {Header, []};
+
+% REMOTE_CALL_WITH_FDS
+decode(#remote_message_header{proc = Proc0,
+                              type = <<?REMOTE_CALL_WITH_FDS:32>>} = Header, <<NumFD:8, Rest/binary>>) ->
+    {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
+    Args = proc_to_call(Proc, "dec", "args"),
+    {Header, [NumFD|decode_payload(Args, Rest)]};
+
+% REMOTE_REPLY_WITH_FDS
+decode(#remote_message_header{proc = Proc0,
+                              type = <<?REMOTE_REPLY_WITH_FDS:32>>,
+                              status = <<?REMOTE_OK:32>>} = Header, <<NumFD:8, Rest/binary>>) ->
+    {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
+    Args = proc_to_call(Proc, "dec", "args"),
+    {Header, [NumFD|decode_payload(Args, Rest)]};
+% XXX returns num fd in an error message?
+decode(#remote_message_header{type = <<?REMOTE_REPLY_WITH_FDS:32>>,
+                              status = <<?REMOTE_ERROR:32>>} = Header, <<_NumFD:8, Rest/binary>>) ->
+    {Header, decode_payload(dec_remote_error, Rest)}.
 
 % XXX shouldn't be a payload if no return values
 decode_payload(none, _Payload) ->
@@ -181,29 +212,12 @@ status({#remote_message_header{
 %%% Internal functions
 %%-------------------------------------------------------------------------
 
-% --- Call Arguments
-
 % 'REMOTE_PROC_DOMAIN_CREATE_XML' -> enc_remote_domain_create_xml_args/1
-enc_args(Proc) when is_atom(Proc) ->
-    proc_to_call(Proc, "enc", "args").
-
-dec_args(Proc) when is_atom(Proc) ->
-    call_exists(proc_to_call(Proc, "dec", "args")).
-
-
-% --- Call Return Values
-
-enc_ret(Proc) ->
-    proc_to_call(Proc, "enc", "ret").
-
 % 'REMOTE_PROC_DOMAIN_CREATE_XML' -> dec_remote_domain_create_xml_ret/2
-dec_ret(Proc) when is_atom(Proc) ->
-    call_exists(proc_to_call(Proc, "dec", "ret")).
-
-%% --- Common
-
-proc_to_call(Proc, Prefix, Suffix) ->
-    proc_to_call_1(atom_to_list(Proc), Prefix, Suffix).
+proc_to_call(Proc, "enc", Suffix) ->
+    proc_to_call_1(atom_to_list(Proc), "enc", Suffix);
+proc_to_call(Proc, "dec", Suffix) ->
+    call_exists(proc_to_call_1(atom_to_list(Proc), "dec", Suffix)).
 
 proc_to_call_1("REMOTE_PROC_" ++ Proc, Prefix, Suffix) ->
     list_to_atom(Prefix ++ "_remote_" ++ string:to_lower(Proc) ++ "_" ++ Suffix).

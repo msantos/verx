@@ -39,8 +39,11 @@
 
     recv/1,
     send/2,
+    finish/1,
 
-    getfd/1
+    getfd/1,
+    getproc/1,
+    serial/1, getserial/1
     ]).
 -export([read_packet/1, read_packet/2]).
 -export([start_link/0, start_link/1]).
@@ -49,8 +52,10 @@
         terminate/2, code_change/3]).
 
 -record(state, {
-    path,   % Unix socket path
-    s       % Unix socket fd
+    path,       % Unix socket path
+    s,          % Unix socket fd
+    proc,       % last called procedure
+    serial = -1 % serial number
     }).
 
 -define(SOCK_PATH, <<"/var/run/libvirt/libvirt-sock">>).
@@ -62,11 +67,17 @@
 call(Ref, Proc) ->
     call(Ref, Proc, []).
 call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
-    Call = verx_rpc:call(Proc, Arg),
-    Message = verx_rpc:encode(Call),
-    case gen_server:call(Ref, {call, Message}, infinity) of
+    Serial = serial(Ref),
+    {Header, Call} = verx_rpc:call(Proc, Arg),
+    Message = verx_rpc:encode({Header#remote_message_header{serial = <<Serial:32>>}, Call}),
+    case gen_server:call(Ref, {call, Proc, Message}, infinity) of
         {ok, Buf} ->
-            verx_rpc:status(verx_rpc:decode(Buf));
+            case verx_rpc:decode(Buf) of
+                {#remote_message_header{serial = <<Serial:32>>}, _} = Reply ->
+                    verx_rpc:status(Reply);
+                Reply ->
+                    error_logger:info_report([{got, Reply}])
+            end;
         Error ->
             Error
     end.
@@ -74,20 +85,35 @@ call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
 % XXX handle in caller or in gen_server?
 recv(Ref) ->
     FD = getfd(Ref),
-    recv(FD, []).
+    Serial = getserial(Ref),
+    recv(FD, Serial, []).
 
-recv(FD, Acc) ->
+recv(FD, Serial, Acc) ->
     case verx_client:read_packet(FD) of
         {ok, Bin} ->
             case verx_rpc:decode(Bin) of
                 {#remote_message_header{
                                 type = <<?REMOTE_STREAM:32>>,
-                                status = <<?REMOTE_CONTINUE:32>>}, []} ->
+                                status = <<?REMOTE_OK:32>>,
+                                serial = <<Serial:32>>}, []} ->
+                    {ok, lists:reverse(Acc)};
+                % XXX A stream is supposed to indicate being finished by
+                % XXX setting the status to REMOTE_OK. For screenshots,
+                % XXX an empty body is used. Maybe this is a bug in this
+                % XXX version of libvirtd but this might cause problems
+                % XXX with other streams.
+                {#remote_message_header{
+                                type = <<?REMOTE_STREAM:32>>,
+                                status = <<?REMOTE_CONTINUE:32>>,
+                                serial = <<Serial:32>>}, <<>>} ->
                     {ok, lists:reverse(Acc)};
                 {#remote_message_header{
                                 type = <<?REMOTE_STREAM:32>>,
-                                status = <<?REMOTE_CONTINUE:32>>}, Payload} ->
-                    recv(FD, [Payload|Acc])
+                                status = <<?REMOTE_CONTINUE:32>>,
+                                serial = <<Serial:32>>}, Payload} ->
+                    recv(FD, Serial, [Payload|Acc]);
+                Any ->
+                    error_logger:info_report([{got, Any}])
             end;
         Error ->
             Error
@@ -95,16 +121,45 @@ recv(FD, Acc) ->
 
 send(Ref, Buf) when is_list(Buf) ->
     FD = getfd(Ref),
-    send_1(FD, Buf).
+    Proc = getproc(Ref),
+    Serial = getserial(Ref),
+    send(FD, Proc, Serial, Buf).
 
-send_1(_FD, []) ->
+send(_FD, _Proc, _Serial, []) ->
     ok;
-send_1(FD, [Buf|Rest]) when is_binary(Buf) ->
-    ok = procket:write(FD, Buf),
-    send_1(FD, Rest).
+send(FD, Proc, Serial, [Buf|Rest]) when is_binary(Buf) ->
+    Header = verx_rpc:header(#remote_message_header{
+            proc = remote_protocol_xdr:enc_remote_procedure(Proc),
+            type = <<?REMOTE_STREAM:32>>,
+            serial = <<Serial:32>>,
+            status = <<?REMOTE_CONTINUE:32>>
+            }),
+    Len = 4 + 24 + byte_size(Header),
+    ok = procket:write(FD, <<Len:32, Header/binary, Buf/binary>>),
+    %ok = procket:write(FD, [Header, Buf]),
+    send(FD, Proc, Serial, Rest).
 
-getfd(Ref) ->
+finish(Ref) when is_pid(Ref) ->
+    FD = getfd(Ref),
+    Proc = getproc(Ref),
+    Header = verx_rpc:header(#remote_message_header{
+            proc = remote_protocol_xdr:enc_remote_procedure(Proc),
+            type = <<?REMOTE_STREAM:32>>,
+            status = <<?REMOTE_OK:32>>
+            }),
+    Len = 4 + 24 + byte_size(Header),
+    procket:write(FD, <<Len:32, Header/binary>>).
+
+serial(Ref) when is_pid(Ref) ->
+    gen_server:call(Ref, serial).
+getserial(Ref) when is_pid(Ref) ->
+    gen_server:call(Ref, getserial).
+
+getfd(Ref) when is_pid(Ref) ->
     gen_server:call(Ref, getfd).
+
+getproc(Ref) when is_pid(Ref) ->
+    gen_server:call(Ref, getproc).
 
 start() ->
     start([]).
@@ -144,14 +199,22 @@ init([Opt]) ->
             }}.
 
 
-handle_call({call, Message}, _From, #state{s = Socket} = State) when is_binary(Message) ->
+handle_call({call, Proc, Message}, _From, #state{s = Socket} = State) when is_binary(Message) ->
     Len = ?REMOTE_MESSAGE_HEADER_XDR_LEN + byte_size(Message),
     ok = procket:sendto(Socket, <<?UINT32(Len), Message/binary>>),
     Reply = read_packet(Socket),
-    {reply, Reply, State};
+    {reply, Reply, State#state{proc = Proc}};
 
 handle_call(getfd, _From, #state{s = Socket} = State) ->
     {reply, Socket, State};
+
+handle_call(getproc, _From, #state{proc = Proc} = State) ->
+    {reply, Proc, State};
+
+handle_call(getserial, _From, #state{serial = Serial} = State) ->
+    {reply, Serial, State};
+handle_call(serial, _From, #state{serial = Serial} = State) ->
+    {reply, Serial+1, State#state{serial = Serial+1}};
 
 handle_call(stop, _From, State) ->
     {stop, shutdown, ok, State}.
@@ -175,7 +238,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Utility functions
 %%-------------------------------------------------------------------------
 read_packet(Socket) ->
-    read_packet(Socket, 1000).
+    read_packet(Socket, 2000).
 read_packet(Socket, Timeout) when is_integer(Socket) ->
     case read_all(Socket, ?REMOTE_MESSAGE_HEADER_XDR_LEN, Timeout) of
         {ok, <<?UINT32(Len)>>} ->
