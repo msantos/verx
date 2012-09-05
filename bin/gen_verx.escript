@@ -53,8 +53,8 @@ main([File]) ->
     Module = erl_syntax:attribute(erl_syntax:atom(module), [erl_syntax:atom(filename:basename(File, ".erl"))]),
     Includes = includes(["verx.hrl"]),
 
-    % Any hardcoded functions to include
-    Static = static(),
+    % Any hardcoded functions will be included here
+    Static = erl_syntax:comment(["%__STATIC__%%"]),
 
     Calls = calls(),
 
@@ -99,7 +99,7 @@ main([File]) ->
                     erl_syntax:function(erl_syntax:atom(Fun), [Clause])
                 end || {Fun, Proc, Arity} <- Calls ],
 
-    Code = erl_prettypr:format(erl_syntax:form_list(lists:flatten([
+    Code0 = erl_prettypr:format(erl_syntax:form_list(lists:flatten([
                 License,
                 Module,
                 Includes,
@@ -113,6 +113,8 @@ main([File]) ->
                 Static,
                 Functions
             ]))),
+
+    Code = re:replace(Code0, "%%__STATIC__%%", static()),
 
 %    io:format("~s~n", [Code]).
     file:write_file(File, [Code]).
@@ -145,32 +147,46 @@ call_arity(Proc, Exports) ->
     proplists:get_value(Fun, Exports, 0).
 
 static_exports() ->
-    [{open, 1}].
+    [{open, 1},
+     {lookup, 2}].
 
 static() ->
     [ static({Fun, Arity}) || {Fun, Arity} <- static_exports() ].
 
 static({open, 1}) ->
-    Comment = [
-" Send a remote protocol open message",
-"   "" : name",
-"   0 : flags",
-" See: remote_protocol_xdr:enc_remote_open_args/1" ],
+"
+% Send a remote protocol open message
+%     <<>> : name
+%     0 : flags
+% See: remote_protocol_xdr:enc_remote_open_args/1
 
-    % open(Ref) -> open(Ref, [<<>>, 0]).
-    [erl_syntax:comment(Comment),
-    erl_syntax:function(erl_syntax:atom(open), [
-            erl_syntax:clause(
-                [erl_syntax:variable("Ref")],
-                [],
-                [erl_syntax:application(erl_syntax:atom(open),
-                    [erl_syntax:variable("Ref"),
-                    erl_syntax:list([
-                        erl_syntax:binary([]),
-                        erl_syntax:integer(0)
-                        ])
-                    ])])])].
+open(Ref) ->
+    open(Ref, [<<>>, 0]).
+";
 
+static({lookup, 2}) ->
+"
+lookup(Ref, {domain, Name}) ->
+    Fun = [ fun() -> verx:domain_lookup_by_id(Ref, [list_to_integer(Name)]) end,
+            fun() -> verx:domain_lookup_by_name(Ref, [list_to_binary(Name)]) end,
+            fun() -> verx:domain_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end ],
+    lookup_1(Fun).
+
+lookup_1(Fun)  ->
+    lookup_1(Fun, []).
+lookup_1([], [{error, Error}|_]) ->
+    {error, Error};
+lookup_1([Fun|Tail], Acc) ->
+    try Fun() of
+        {ok, Res} ->
+            {ok, Res};
+        {error, Error} ->
+            lookup_1(Tail, [{error, Error}|Acc])
+        catch
+            _:_ ->
+                lookup_1(Tail, Acc)
+    end.
+".
 
 includes(Header) ->
     [ erl_syntax:attribute(erl_syntax:atom(include), [erl_syntax:string(N)]) || N <- Header ].
