@@ -59,10 +59,18 @@ main([File]) ->
     Calls = calls(),
 
     % Generate the list of exports
-    Exports = erl_syntax:attribute(erl_syntax:atom(export), [
+    Comment_static = erl_syntax:comment([" Static functions"]),
+    Exports_static = erl_syntax:attribute(erl_syntax:atom(export), [
+                erl_syntax:list([
+                    erl_syntax:arity_qualifier(erl_syntax:atom(Fun), erl_syntax:integer(Arity))
+                        || {Fun, Arity} <- static_exports() ])
+                ]),
+
+    Comment_gen = erl_syntax:comment([" Generated functions"]),
+    Exports_gen = erl_syntax:attribute(erl_syntax:atom(export), [
                 erl_syntax:list([
                     erl_syntax:arity_qualifier(erl_syntax:atom(Fun), erl_syntax:integer(Arity+1))
-                        || {Fun, _, Arity} <- static_exports() ++ Calls ])
+                        || {Fun, _, Arity} <- Calls ])
                 ]),
 
     % Generate the functions
@@ -95,7 +103,13 @@ main([File]) ->
                 License,
                 Module,
                 Includes,
-                Exports,
+
+                Comment_static,
+                Exports_static,
+
+                Comment_gen,
+                Exports_gen,
+
                 Static,
                 Functions
             ]))),
@@ -131,10 +145,10 @@ call_arity(Proc, Exports) ->
     proplists:get_value(Fun, Exports, 0).
 
 static_exports() ->
-    [{open, none, 0}].
+    [{open, 1}].
 
 static() ->
-    [ static({Fun, Arity+1}) || {Fun, _, Arity} <- static_exports() ].
+    [ static({Fun, Arity}) || {Fun, Arity} <- static_exports() ].
 
 static({open, 1}) ->
     Comment = [

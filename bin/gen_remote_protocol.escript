@@ -33,10 +33,10 @@ main([Src0, Dst0]) ->
     Include = filename:absname("include", Dir),
     Hrl = filename:basename(Src0, ".x") ++ ".hrl",
 
-    % load remote_protocol_xdr
     true = code:add_patha(filename:dirname(escript:script_name())
                             ++ "/../deps/erpcgen/ebin"),
 
+    % modules will not be loaded without rehashing here
     code:rehash(),
 
     case file_exists(Src) of
