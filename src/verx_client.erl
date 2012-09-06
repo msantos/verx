@@ -72,12 +72,9 @@ call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
     Message = verx_rpc:encode({Header#remote_message_header{serial = <<Serial:32>>}, Call}),
     case gen_server:call(Ref, {call, Proc, Message}, infinity) of
         {ok, Buf} ->
-            case verx_rpc:decode(Buf) of
-                {#remote_message_header{serial = <<Serial:32>>}, _} = Reply ->
-                    verx_rpc:status(Reply);
-                Reply ->
-                    error_logger:info_report([{got, Reply}])
-            end;
+            Reply = verx_rpc:decode(Buf),
+            {#remote_message_header{serial = <<Serial:32>>}, _} = Reply,
+            verx_rpc:status(Reply);
         Error ->
             Error
     end.
@@ -134,20 +131,21 @@ send(FD, Proc, Serial, [Buf|Rest]) when is_binary(Buf) ->
             serial = <<Serial:32>>,
             status = <<?REMOTE_CONTINUE:32>>
             }),
-    Len = 4 + 24 + byte_size(Header),
-    ok = procket:write(FD, <<Len:32, Header/binary, Buf/binary>>),
-    %ok = procket:write(FD, [Header, Buf]),
+    Len = 4 + 24 + byte_size(Buf),
+    ok = procket:write(FD, [<<Len:32>>, Header, Buf]),
     send(FD, Proc, Serial, Rest).
 
 finish(Ref) when is_pid(Ref) ->
     FD = getfd(Ref),
     Proc = getproc(Ref),
+    Serial = getserial(Ref),
     Header = verx_rpc:header(#remote_message_header{
             proc = remote_protocol_xdr:enc_remote_procedure(Proc),
             type = <<?REMOTE_STREAM:32>>,
+            serial = <<Serial:32>>,
             status = <<?REMOTE_OK:32>>
             }),
-    Len = 4 + 24 + byte_size(Header),
+    Len = 4 + 24,
     procket:write(FD, <<Len:32, Header/binary>>).
 
 serial(Ref) when is_pid(Ref) ->

@@ -111,5 +111,6 @@ create() ->
 
 destroy({Ref, Domain})  ->
     ok = verx:domain_destroy(Ref, [Domain]),
+    ok = verx:domain_undefine(Ref, [Domain]),
     verx:close(Ref),
     verx_client:stop(Ref).
