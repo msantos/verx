@@ -167,9 +167,10 @@ open(Ref) ->
 static({lookup, 2}) ->
 "
 lookup(Ref, {domain, Name}) ->
-    Fun = [ fun() -> verx:domain_lookup_by_id(Ref, [list_to_integer(Name)]) end,
-            fun() -> verx:domain_lookup_by_name(Ref, [list_to_binary(Name)]) end,
-            fun() -> verx:domain_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end ],
+    Fun = [ fun() -> verx:domain_lookup_by_id(Ref, [Name]) end,
+            fun() -> verx:domain_lookup_by_name(Ref, [Name]) end,
+            fun() -> verx:domain_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end,
+            fun() -> verx:domain_lookup_by_uuid(Ref, [Name]) end ],
     lookup_1(Fun).
 
 lookup_1(Fun)  ->

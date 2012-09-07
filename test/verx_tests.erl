@@ -69,7 +69,7 @@ domain_list_info({Ref, Domain}) ->
 
 info(Ref, Domains) ->
     [ begin
-        {ok, [{Name, UUID, Id}]} = verx:domain_lookup_by_id(Ref, [N]),
+        {ok, [{Name, UUID, Id}]} = verx:lookup(Ref, {domain, N}),
         {Name, [{uuid, UUID}, {id, Id}]}
       end || N <- Domains ].
 
