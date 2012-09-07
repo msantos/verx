@@ -41,9 +41,7 @@
     send/2,
     finish/1,
 
-    getfd/1,
-    getproc/1,
-    serial/1, getserial/1
+    getfd/1
     ]).
 -export([read_packet/1, read_packet/2]).
 -export([start_link/0, start_link/1]).
@@ -79,10 +77,8 @@ call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
             Error
     end.
 
-% XXX handle in caller or in gen_server?
 recv(Ref) ->
-    FD = getfd(Ref),
-    Serial = getserial(Ref),
+    #state{s = FD, serial = Serial} = getstate(Ref),
     recv(FD, Serial, []).
 
 recv(FD, Serial, Acc) ->
@@ -117,9 +113,7 @@ recv(FD, Serial, Acc) ->
     end.
 
 send(Ref, Buf) when is_list(Buf) ->
-    FD = getfd(Ref),
-    Proc = getproc(Ref),
-    Serial = getserial(Ref),
+    #state{s = FD, proc = Proc, serial = Serial} = getstate(Ref),
     send(FD, Proc, Serial, Buf).
 
 send(_FD, _Proc, _Serial, []) ->
@@ -136,9 +130,7 @@ send(FD, Proc, Serial, [Buf|Rest]) when is_binary(Buf) ->
     send(FD, Proc, Serial, Rest).
 
 finish(Ref) when is_pid(Ref) ->
-    FD = getfd(Ref),
-    Proc = getproc(Ref),
-    Serial = getserial(Ref),
+    #state{s = FD, proc = Proc, serial = Serial} = getstate(Ref),
     Header = verx_rpc:header(#remote_message_header{
             proc = remote_protocol_xdr:enc_remote_procedure(Proc),
             type = <<?REMOTE_STREAM:32>>,
@@ -150,14 +142,9 @@ finish(Ref) when is_pid(Ref) ->
 
 serial(Ref) when is_pid(Ref) ->
     gen_server:call(Ref, serial).
-getserial(Ref) when is_pid(Ref) ->
-    gen_server:call(Ref, getserial).
 
 getfd(Ref) when is_pid(Ref) ->
     gen_server:call(Ref, getfd).
-
-getproc(Ref) when is_pid(Ref) ->
-    gen_server:call(Ref, getproc).
 
 start() ->
     start([]).
@@ -209,10 +196,11 @@ handle_call(getfd, _From, #state{s = Socket} = State) ->
 handle_call(getproc, _From, #state{proc = Proc} = State) ->
     {reply, Proc, State};
 
-handle_call(getserial, _From, #state{serial = Serial} = State) ->
-    {reply, Serial, State};
 handle_call(serial, _From, #state{serial = Serial} = State) ->
     {reply, Serial+1, State#state{serial = Serial+1}};
+
+handle_call(getstate, _From, State) ->
+    {reply, State, State};
 
 handle_call(stop, _From, State) ->
     {stop, shutdown, ok, State}.
@@ -270,3 +258,6 @@ read_all(Socket, Len, Timeout, Acc) ->
         Error ->
             Error
     end.
+
+getstate(Ref) when is_pid(Ref) ->
+    gen_server:call(Ref, getstate).
