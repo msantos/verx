@@ -125,7 +125,7 @@ send(FD, Proc, Serial, [Buf|Rest]) when is_binary(Buf) ->
             serial = <<Serial:32>>,
             status = <<?REMOTE_CONTINUE:32>>
             }),
-    Len = 4 + 24 + byte_size(Buf),
+    Len = ?REMOTE_MESSAGE_HEADER_XDR_LEN + byte_size(Header) + byte_size(Buf),
     ok = procket:write(FD, [<<Len:32>>, Header, Buf]),
     send(FD, Proc, Serial, Rest).
 
@@ -137,7 +137,7 @@ finish(Ref) when is_pid(Ref) ->
             serial = <<Serial:32>>,
             status = <<?REMOTE_OK:32>>
             }),
-    Len = 4 + 24,
+    Len = ?REMOTE_MESSAGE_HEADER_XDR_LEN + byte_size(Header),
     procket:write(FD, <<Len:32, Header/binary>>).
 
 serial(Ref) when is_pid(Ref) ->
