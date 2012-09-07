@@ -53,7 +53,7 @@
     path,       % Unix socket path
     s,          % Unix socket fd
     proc,       % last called procedure
-    serial = -1 % serial number
+    serial = 0  % serial number
     }).
 
 -define(SOCK_PATH, <<"/var/run/libvirt/libvirt-sock">>).
@@ -65,10 +65,16 @@
 call(Ref, Proc) ->
     call(Ref, Proc, []).
 call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
-    Serial = serial(Ref),
+    #state{s = Socket, serial = Serial} = getstate(Ref),
+
     {Header, Call} = verx_rpc:call(Proc, Arg),
+
     Message = verx_rpc:encode({Header#remote_message_header{serial = <<Serial:32>>}, Call}),
-    case gen_server:call(Ref, {call, Proc, Message}, infinity) of
+    Len = ?REMOTE_MESSAGE_HEADER_XDR_LEN + byte_size(Message),
+
+    ok = procket:write(Socket, [<<?UINT32(Len)>>, Message]),
+
+    case read_packet(Socket) of
         {ok, Buf} ->
             Reply = verx_rpc:decode(Buf),
             {#remote_message_header{serial = <<Serial:32>>}, _} = Reply,
@@ -90,11 +96,9 @@ recv(FD, Serial, Acc) ->
                                 status = <<?REMOTE_OK:32>>,
                                 serial = <<Serial:32>>}, []} ->
                     {ok, lists:reverse(Acc)};
-                % XXX A stream is supposed to indicate being finished by
-                % XXX setting the status to REMOTE_OK. For screenshots,
-                % XXX an empty body is used. Maybe this is a bug in this
-                % XXX version of libvirtd but this might cause problems
-                % XXX with other streams.
+                % XXX A stream indicates finish by setting the status to
+                % XXX REMOTE_OK. For screenshots, an empty body is returned with the
+                % XXX status set to 'continue'.
                 {#remote_message_header{
                                 type = <<?REMOTE_STREAM:32>>,
                                 status = <<?REMOTE_CONTINUE:32>>,
@@ -140,9 +144,6 @@ finish(Ref) when is_pid(Ref) ->
     Len = ?REMOTE_MESSAGE_HEADER_XDR_LEN + byte_size(Header),
     procket:write(FD, <<Len:32, Header/binary>>).
 
-serial(Ref) when is_pid(Ref) ->
-    gen_server:call(Ref, serial).
-
 getfd(Ref) when is_pid(Ref) ->
     gen_server:call(Ref, getfd).
 
@@ -184,11 +185,8 @@ init([Opt]) ->
             }}.
 
 
-handle_call({call, Proc, Message}, _From, #state{s = Socket} = State) when is_binary(Message) ->
-    Len = ?REMOTE_MESSAGE_HEADER_XDR_LEN + byte_size(Message),
-    ok = procket:sendto(Socket, <<?UINT32(Len), Message/binary>>),
-    Reply = read_packet(Socket),
-    {reply, Reply, State#state{proc = Proc}};
+handle_call({call, Proc, Message}, _From, #state{serial = Serial} = State) when is_binary(Message) ->
+    {reply, ok, State#state{proc = Proc, serial = Serial+1}};
 
 handle_call(getfd, _From, #state{s = Socket} = State) ->
     {reply, Socket, State};
