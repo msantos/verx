@@ -31,6 +31,10 @@
 %-include("include/remote_protocol.hrl").
 -include("$PWD/include/remote_protocol.hrl").
 
+-define(LIBVIRT_SOCK_PATH, <<"/var/run/libvirt/libvirt-sock">>).
+-define(LIBVIRT_TCP_PORT, 16509).
+-define(LIBVIRT_TLS_PORT, 16514).
+
 -define(UINT32(N), N:4/unsigned-integer-unit:8).
 -define(UINT64(N), N:8/unsigned-integer-unit:8).
 -define(INT32(N), N:4/signed-integer-unit:8).

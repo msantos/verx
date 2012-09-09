@@ -58,8 +58,6 @@
         buf = {0, []}
         }).
 
--define(LIBVIRT_PORT, 16509).
-
 
 %%-------------------------------------------------------------------------
 %%% API
@@ -160,7 +158,7 @@ stop(Ref) when is_pid(Ref) ->
 init([Pid, Opt]) ->
 
     Host = proplists:get_value(host, Opt, "127.0.0.1"),
-    Port = proplists:get_value(port, Opt, ?LIBVIRT_PORT),
+    Port = proplists:get_value(port, Opt, ?LIBVIRT_TCP_PORT),
 
     {IP, Family} = resolv(Host),
 

@@ -58,8 +58,6 @@
     serial = 0  % serial number
     }).
 
--define(SOCK_PATH, <<"/var/run/libvirt/libvirt-sock">>).
-
 
 %%-------------------------------------------------------------------------
 %%% API
@@ -197,7 +195,7 @@ stop(Ref) when is_pid(Ref) ->
 %%-------------------------------------------------------------------------
 init([Opt]) ->
 
-    Path = maybe_binary(proplists:get_value(path, Opt, ?SOCK_PATH)),
+    Path = maybe_binary(proplists:get_value(path, Opt, ?LIBVIRT_SOCK_PATH)),
 
     % Connect to the libvirt Unix socket
     {ok, Socket} = procket:socket(?PF_LOCAL, ?SOCK_STREAM, 0),
