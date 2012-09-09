@@ -35,21 +35,24 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("verx.hrl").
 
-%vert_unix_test_() ->
-%    {setup,
-%     fun unix/0,
-%     fun destroy/1,
-%     fun(N) -> [?_test(domain_list_info(N)),
-%                 ?_test(screenshot(N))] end
-%    }.
 
-vert_tcp_test_() ->
-    {setup,
-     fun tcp/0,
-     fun destroy/1,
-     fun(N) -> [?_test(domain_list_info(N)),
-                 ?_test(screenshot(N))] end
-    }.
+verx_test_() ->
+    {timeout, 60, [
+            {?LINE, fun() -> run_vm(verx_client_unix) end},
+            {?LINE, fun() -> run_vm(verx_client_tcp) end}
+            ]}.
+
+run_vm(Transport) ->
+    {ok, Ref} = verx_client:start([{transport, Transport}]),
+    ok = verx:open(Ref),
+    {ok, Domain} = create(Ref),
+
+    [ begin ok = ?MODULE:Fun({Ref, Domain}) end ||
+        Fun <- [domain_list_info, screenshot] ],
+
+    ok = destroy(Ref, Domain),
+
+    ok.
 
 domain_list_info({Ref, Domain}) ->
     {ok, [NumDef]} = verx:num_of_defined_domains(Ref),
@@ -94,24 +97,16 @@ screenshot({Ref, Domain}) ->
     File = <<"localvm", Ext/binary>>,
     ok = file:write_file(File, Buf),
 
-    {ok, Mime, File}.
+    error_logger:info_report([{screenshot, Mime, File}]),
+
+    ok.
 
 
 %%-------------------------------------------------------------------------
 %%% Internal functions
 %%-------------------------------------------------------------------------
 
-unix() ->
-    {ok, Ref} = verx_client:start(),
-    create(Ref).
-
-tcp() ->
-    {ok, Ref} = verx_client:start([{transport, verx_client_tcp}]),
-    create(Ref).
-
 create(Ref) ->
-    ok = verx:open(Ref),
-
     Path = filename:join([
             filename:dirname(code:which(vert)),
             "..",
@@ -123,9 +118,9 @@ create(Ref) ->
 
     {ok, [Domain]} = verx:domain_define_xml(Ref, [XML]),
     ok = verx:domain_create(Ref, [Domain]),
-    {Ref, Domain}.
+    {ok, Domain}.
 
-destroy({Ref, Domain})  ->
+destroy(Ref, Domain)  ->
     ok = verx:domain_destroy(Ref, [Domain]),
     ok = verx:domain_undefine(Ref, [Domain]),
     verx:close(Ref),
