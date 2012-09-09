@@ -15,7 +15,7 @@ remote\_protocol.x contains this warning:
 
 <http://libvirt.org/git/?p=libvirt.git;a=blob_plain;f=src/remote/remote_protocol.x;hb=HEAD>
 
-However, see the section "GENERATING THE REMOTE PROTOCOL MODULE" below for
+However, see the section _GENERATING THE REMOTE PROTOCOL MODULE_ below for
 instructions on recompiling the XDR protocol spec if any changes occur.
 
 The RPC protocol is documented here:
@@ -33,7 +33,7 @@ The version of remote\_protocol.x used was taken from libvirt master
 
     make
 
-See "GENERATING THE REMOTE PROTOCOL MODULE" to rebuild the XDR protocol
+See _GENERATING THE REMOTE PROTOCOL MODULE_ to rebuild the XDR protocol
 parser.
 
 ## CREATING A TEST VM
@@ -185,7 +185,7 @@ See <http://libvirt.org/html/libvirt-libvirt.html>
     ok = verx:close(Ref),
     ok = verx_client:stop(Ref).
 
-    % open a TLS connection on the default ports
+    % open a TLS connection on the default port
     CACert = "/tmp/cert/cacert.pem",
     Cert = "/tmp/cert/clientcert.pem",
     Key = "/tmp/cert/clientkey.pem",
@@ -403,7 +403,9 @@ To create the remote\_protocol\_xdr.erl from a remote\_protocol.x file:
 
 1. Copy remote\_protocol.x to priv
 
-2. Run: make clean; make
+2. Run:
+
+        make clean; make
 
 If there are any errors, read through `bin/gen_remote_protocol.escript`.
 
