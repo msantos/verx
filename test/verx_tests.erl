@@ -35,9 +35,17 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("verx.hrl").
 
-vert_test_() ->
+vert_unix_test_() ->
     {setup,
-     fun create/0,
+     fun unix/0,
+     fun destroy/1,
+     fun(N) -> [?_test(domain_list_info(N)),
+                 ?_test(screenshot(N))] end
+    }.
+
+vert_tcp_test_() ->
+    {setup,
+     fun tcp/0,
      fun destroy/1,
      fun(N) -> [?_test(domain_list_info(N)),
                  ?_test(screenshot(N))] end
@@ -81,7 +89,7 @@ screenshot({Ref, Domain}) ->
         _ -> <<".screen">>
     end,
 
-    {ok, Buf} = verx_client:recv(Ref),
+    {ok, Buf} = verx_client:recvall(Ref),
 
     File = <<"localvm", Ext/binary>>,
     ok = file:write_file(File, Buf),
@@ -92,8 +100,16 @@ screenshot({Ref, Domain}) ->
 %%-------------------------------------------------------------------------
 %%% Internal functions
 %%-------------------------------------------------------------------------
-create() ->
+
+unix() ->
     {ok, Ref} = verx_client:start(),
+    create(Ref).
+
+tcp() ->
+    {ok, Ref} = verx_client:start([{transport, verx_client_tcp}]),
+    create(Ref).
+
+create(Ref) ->
     ok = verx:open(Ref),
 
     Path = filename:join([

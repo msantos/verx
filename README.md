@@ -59,21 +59,30 @@ environment variables before running the script:
 
 See <http://libvirt.org/html/libvirt-libvirt.html>
 
+### DATA TYPES
+
+    verx_transport()
+
+        Reference to the underlying transport and transport handler.
+
+    unix_socket() = string() | binary()
+
+        Path to Unix socket.
+
 ### verx
+
 
     verx:Call(Ref) -> ok | {ok, Payload} | {error, Error}
     verx:Call(Ref, Arg) -> ok | {ok, Payload} | {error, Error}
 
         Types   Call = [open, close, list_domain, ...]
-                Ref = pid()
+                Ref = verx_transport()
                 Arg = [remote_protocol_args()]
                 Payload = [remote_protocol_ret()]
                 Error = [ posix() | libvirt() ]
 
     verx has a large number of functions (283). See verx.erl or the
     exports in verx:module_info() for a list.
-
-    The Ref is pid of the verx_client.
 
     Understanding the arguments for a remote protocol call takes some
     work.  For example, for verx:domain_define_xml/2, here are some
@@ -104,14 +113,26 @@ See <http://libvirt.org/html/libvirt-libvirt.html>
 
 ### verx\_client
 
-    verx_client:start(Ref) -> {ok, Ref} | {error, posix()}
-    verx_client:stop(Ref) -> ok
+    verx_client:start(Opt) -> {ok, Ref} | {error, posix()}
+
+        Types   Opt = [ Options ]
+                Options = {transport, Transport}
+                    | {path, unix_socket()}
+                    | {host, ip_address()}
+                    | {port, uint16()}
+                Transport = verx_client_unix | verx_client_tcp
 
         RPC transport layer, currently only supports Unix sockets.
 
+        Options depend on the underlying transport mechanism.
+
+    verx_client:stop(Ref) -> ok
+
+        Closes the transport socket.
+
     verx_client:recv(Ref) -> {ok, Buf} | {error, posix()}
 
-        Types   Ref = pid
+        Types   Ref = verx_transport()
                 Buf = [binary()]
 
         Returns streamed data. The stream must first be prepared
@@ -335,7 +356,7 @@ Here is an example of using the libvirt stream interface.
             _ -> <<".screen">>
         end,
 
-        {ok, Buf} = verx_client:recv(Ref),
+        {ok, Buf} = verx_client:recvall(Ref),
 
         File = <<Name/binary, Ext/binary>>,
         ok = file:write_file(File, Buf),
@@ -362,10 +383,9 @@ If there are any errors, read through `bin/gen_remote_protocol.escript`.
     * SSL
     * SSH
 
-* increment the serial number in the message header
+* generate verx.hrl from virnetprotocol.c
 
-* continue status
-    * upload stream
-    * bidirectional stream
-    * overlapping
-    * passed fd
+* receive on the console is broken (or send if using active mode)
+
+* sockets polled using the Erlang port event loop don't always return
+  all the data (Unix, tcp)

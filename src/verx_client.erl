@@ -29,233 +29,64 @@
 %% ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 %% POSSIBILITY OF SUCH DAMAGE.
 -module(verx_client).
--behaviour(gen_server).
 
--include("verx.hrl").
--include_lib("procket/include/procket.hrl").
-
+-export([start_link/0, start_link/1]).
+-export([start/0, start/1, stop/1]).
 -export([
     call/2, call/3,
 
-    recv/1,
     send/2,
-    finish/1,
-
-    getfd/1
+    recv/1, recv/2,
+    recvall/1, recvall/2,
+    finish/1
     ]).
--export([read_packet/1, read_packet/2]).
--export([start_link/0, start_link/1]).
--export([start/0, start/1, stop/1]).
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-        terminate/2, code_change/3]).
-
--record(state, {
-    path,       % Unix socket path
-    s,          % Unix socket fd
-    proc,       % last called procedure
-    serial = 0  % serial number
-    }).
-
--define(SOCK_PATH, <<"/var/run/libvirt/libvirt-sock">>).
 
 
 %%-------------------------------------------------------------------------
 %%% API
 %%-------------------------------------------------------------------------
-call(Ref, Proc) ->
-    call(Ref, Proc, []).
-call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
-    #state{s = Socket, serial = Serial} = getstate(Ref),
-
-    {Header, Call} = verx_rpc:call(Proc, Arg),
-
-    Message = verx_rpc:encode({Header#remote_message_header{serial = <<Serial:32>>}, Call}),
-    Len = ?REMOTE_MESSAGE_HEADER_XDR_LEN + byte_size(Message),
-
-    ok = procket:write(Socket, [<<?UINT32(Len)>>, Message]),
-
-    case read_packet(Socket) of
-        {ok, Buf} ->
-            Reply = verx_rpc:decode(Buf),
-            {#remote_message_header{serial = <<Serial:32>>}, _} = Reply,
-            verx_rpc:status(Reply);
-        Error ->
-            Error
-    end.
-
-recv(Ref) ->
-    #state{s = FD, serial = Serial} = getstate(Ref),
-    recv(FD, Serial, []).
-
-recv(FD, Serial, Acc) ->
-    case verx_client:read_packet(FD) of
-        {ok, Bin} ->
-            case verx_rpc:decode(Bin) of
-                {#remote_message_header{
-                                type = <<?REMOTE_STREAM:32>>,
-                                status = <<?REMOTE_OK:32>>,
-                                serial = <<Serial:32>>}, []} ->
-                    {ok, lists:reverse(Acc)};
-                % XXX A stream indicates finish by setting the status to
-                % XXX REMOTE_OK. For screenshots, an empty body is returned with the
-                % XXX status set to 'continue'.
-                {#remote_message_header{
-                                type = <<?REMOTE_STREAM:32>>,
-                                status = <<?REMOTE_CONTINUE:32>>,
-                                serial = <<Serial:32>>}, <<>>} ->
-                    {ok, lists:reverse(Acc)};
-                {#remote_message_header{
-                                type = <<?REMOTE_STREAM:32>>,
-                                status = <<?REMOTE_CONTINUE:32>>,
-                                serial = <<Serial:32>>}, Payload} ->
-                    recv(FD, Serial, [Payload|Acc]);
-                Any ->
-                    error_logger:info_report([{got, Any}])
-            end;
-        Error ->
-            Error
-    end.
-
-send(Ref, Buf) when is_list(Buf) ->
-    #state{s = FD, proc = Proc, serial = Serial} = getstate(Ref),
-    send(FD, Proc, Serial, Buf).
-
-send(_FD, _Proc, _Serial, []) ->
-    ok;
-send(FD, Proc, Serial, [Buf|Rest]) when is_binary(Buf) ->
-    Header = verx_rpc:header(#remote_message_header{
-            proc = remote_protocol_xdr:enc_remote_procedure(Proc),
-            type = <<?REMOTE_STREAM:32>>,
-            serial = <<Serial:32>>,
-            status = <<?REMOTE_CONTINUE:32>>
-            }),
-    Len = ?REMOTE_MESSAGE_HEADER_XDR_LEN + byte_size(Header) + byte_size(Buf),
-    ok = procket:write(FD, [<<Len:32>>, Header, Buf]),
-    send(FD, Proc, Serial, Rest).
-
-finish(Ref) when is_pid(Ref) ->
-    #state{s = FD, proc = Proc, serial = Serial} = getstate(Ref),
-    Header = verx_rpc:header(#remote_message_header{
-            proc = remote_protocol_xdr:enc_remote_procedure(Proc),
-            type = <<?REMOTE_STREAM:32>>,
-            serial = <<Serial:32>>,
-            status = <<?REMOTE_OK:32>>
-            }),
-    Len = ?REMOTE_MESSAGE_HEADER_XDR_LEN + byte_size(Header),
-    procket:write(FD, <<Len:32, Header/binary>>).
-
-getfd(Ref) when is_pid(Ref) ->
-    gen_server:call(Ref, getfd).
+call({Module, Ref}, Proc) ->
+    Module:call(Ref, Proc).
+call({Module, Ref}, Proc, Arg) ->
+    Module:call(Ref, Proc, Arg).
 
 start() ->
     start([]).
-start(Path) ->
-    gen_server:start(?MODULE, [Path], []).
+
+start(Arg) ->
+    Transport = proplists:get_value(transport, Arg, verx_client_unix),
+    case Transport:start(Arg) of
+        {ok, Ref} -> {ok, {Transport, Ref}};
+        Error -> Error
+    end.
 
 start_link() ->
     start_link([]).
-start_link(Opt) when is_list(Opt) ->
-    gen_server:start_link(?MODULE, [Opt], []).
 
-stop(Ref) when is_pid(Ref) ->
-    gen_server:call(Ref, stop).
-
-
-%%-------------------------------------------------------------------------
-%%% Callbacks
-%%-------------------------------------------------------------------------
-init([Opt]) ->
-
-    Path = maybe_binary(proplists:get_value(path, Opt, ?SOCK_PATH)),
-
-    % Connect to the libvirt Unix socket
-    {ok, Socket} = procket:socket(?PF_LOCAL, ?SOCK_STREAM, 0),
-
-    PathMax = procket:unix_path_max(),
-
-    Sun = <<?PF_LOCAL:16/native,            % sun_family
-            Path/binary,                    % socket path
-            0:((PathMax-byte_size(Path))*8)>>,
-
-    ok = procket:connect(Socket, Sun),
-
-    {ok, #state{
-            s = Socket,
-            path = Sun
-            }}.
-
-
-handle_call({call, Proc, Message}, _From, #state{serial = Serial} = State) when is_binary(Message) ->
-    {reply, ok, State#state{proc = Proc, serial = Serial+1}};
-
-handle_call(getfd, _From, #state{s = Socket} = State) ->
-    {reply, Socket, State};
-
-handle_call(getproc, _From, #state{proc = Proc} = State) ->
-    {reply, Proc, State};
-
-handle_call(serial, _From, #state{serial = Serial} = State) ->
-    {reply, Serial+1, State#state{serial = Serial+1}};
-
-handle_call(getstate, _From, State) ->
-    {reply, State, State};
-
-handle_call(stop, _From, State) ->
-    {stop, shutdown, ok, State}.
-
-handle_cast(_Msg, State) ->
-    {noreply, State}.
-
-% WTF?
-handle_info(Info, State) ->
-    error_logger:error_report([{wtf, Info}]),
-    {noreply, State}.
-
-terminate(_Reason, #state{s = S}) ->
-    procket:close(S),
-    ok.
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
-
-
-%%-------------------------------------------------------------------------
-%%% Utility functions
-%%-------------------------------------------------------------------------
-read_packet(Socket) ->
-    read_packet(Socket, 2000).
-read_packet(Socket, Timeout) when is_integer(Socket) ->
-    case read_all(Socket, ?REMOTE_MESSAGE_HEADER_XDR_LEN, Timeout) of
-        {ok, <<?UINT32(Len)>>} ->
-            read_all(Socket, Len - ?REMOTE_MESSAGE_HEADER_XDR_LEN, Timeout);
-        Error ->
-            Error
+start_link(Arg) ->
+    Transport = proplists:get_value(transport, Arg, verx_client_unix),
+    case Transport:start_link(Arg) of
+        {ok, Ref} -> {ok, {Transport, Ref}};
+        Error -> Error
     end.
 
+stop({Module, Ref}) ->
+    Module:stop(Ref).
 
-%%-------------------------------------------------------------------------
-%%% Internal functions
-%%-------------------------------------------------------------------------
-maybe_binary(N) when is_binary(N) ->
-    N;
-maybe_binary(N) when is_list(N) ->
-    list_to_binary(N).
+send({Module, Ref}, Buf) ->
+    Module:send(Ref, Buf).
 
-read_all(Socket, Len, Timeout) ->
-    read_all(Socket, Len, Timeout, []).
-read_all(Socket, Len, Timeout, Acc) ->
-    case procket:read(Socket, Len) of
-        {ok, Buf} when Len - byte_size(Buf) =:= 0 ->
-            {ok, list_to_binary(lists:reverse([Buf|Acc]))};
-        {ok, Buf} ->
-            read_all(Socket, Len - byte_size(Buf), Timeout, [Buf|Acc]);
-        {error, eagain} when Timeout =< 0 ->
-            {error, eagain};
-        {error, eagain} ->
-            timer:sleep(10),
-            read_all(Socket, Len, Timeout - 10, Acc);
-        Error ->
-            Error
-    end.
+recv({Module, Ref}) ->
+    Module:recv(Ref).
 
-getstate(Ref) when is_pid(Ref) ->
-    gen_server:call(Ref, getstate).
+recv({Module, Ref}, Timeout) ->
+    Module:recv(Ref, Timeout).
+
+recvall({Module, Ref}) ->
+    Module:recvall(Ref).
+
+recvall({Module, Ref}, Timeout) ->
+    Module:recvall(Ref, Timeout).
+
+finish({Module, Ref}) ->
+    Module:finish(Ref).

@@ -23,6 +23,11 @@ main(Opt) ->
 
     call(Opt).
 
+call(["capabilities" | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+    rp(verx:get_capabilities(Ref));
+
 call(["create", Name | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
@@ -87,7 +92,7 @@ call(["screenshot", Name | Arg]) ->
     {ok, [Domain]} = lookup(Ref, {domain, Name}),
 
     {ok, Mime} = verx:domain_screenshot(Ref, [Domain, Screen, Flags]),
-    {ok, Buf} = verx_client:recv(Ref),
+    {ok, Buf} = verx_client:recvall(Ref),
 
     ok = file:write_file(File, Buf),
 
@@ -107,12 +112,13 @@ call(["undefine", Name | Arg]) ->
 
 call(_) ->
     Help = [
+        "capabilities",
         "create",
         "define",
         "destroy",
         "dumpxml",
         "list",
-        "list --all"
+        "list --all",
         "screenshot",
         "undefine"
     ],
@@ -128,7 +134,23 @@ rp(Term) ->
 
 connect(Opt) ->
     URI = proplists:get_value("uri", Opt, "qemu:///system"),
-    {ok, Ref} = verx_client:start_link(),
+
+    Transport = list_to_atom(proplists:get_value("transport", Opt,
+                    "verx_client_unix")),
+
+    % Unix socket
+    Path = proplists:get_value("path", Opt, "/var/run/libvirt/libvirt-sock"),
+
+    % TCP
+    Host = proplists:get_value("host", Opt, "127.0.0.1"),
+    Port = list_to_integer(proplists:get_value("port", Opt, "16509")),
+
+    {ok, Ref} = verx_client:start_link([
+            {transport, Transport},
+            {path, Path},
+            {host, Host},
+            {port, Port}
+            ]),
     ok = verx:open(Ref, [URI, 0]),
     {ok, Ref}.
 
