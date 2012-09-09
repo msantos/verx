@@ -379,13 +379,9 @@ If there are any errors, read through `bin/gen_remote_protocol.escript`.
 * fix broken include paths for bin/verx, include/verx.hrl
 
 * transport protocols
-    * TCP
     * SSL
     * SSH
 
 * generate verx.hrl from virnetprotocol.c
 
-* receive on the console is broken (or send if using active mode)
-
-* sockets polled using the Erlang port event loop don't always return
-  all the data (Unix, tcp)
+* console: receive is broken (or send if using active mode)

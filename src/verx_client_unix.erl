@@ -86,7 +86,7 @@ call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
     end.
 
 recv(Ref) ->
-    recv(Ref, 2000).
+    recv(Ref, 5000).
 recv(Ref, Timeout) ->
     #state{s = FD, serial = Serial} = getstate(Ref),
     recv(FD, Serial, Timeout, []).
@@ -98,14 +98,6 @@ recv(FD, Serial, Timeout, Acc) ->
                                 type = <<?REMOTE_STREAM:32>>,
                                 status = <<?REMOTE_OK:32>>,
                                 serial = <<Serial:32>>}, []} ->
-                    {ok, lists:reverse(Acc)};
-                % XXX A stream indicates finish by setting the status to
-                % XXX REMOTE_OK. For screenshots, an empty body is returned with the
-                % XXX status set to 'continue'.
-                {#remote_message_header{
-                                type = <<?REMOTE_STREAM:32>>,
-                                status = <<?REMOTE_CONTINUE:32>>,
-                                serial = <<Serial:32>>}, <<>>} ->
                     {ok, lists:reverse(Acc)};
                 {#remote_message_header{
                                 type = <<?REMOTE_STREAM:32>>,
@@ -120,7 +112,7 @@ recv(FD, Serial, Timeout, Acc) ->
     end.
 
 recvall(Ref) ->
-    recvall(Ref, 2000).
+    recvall(Ref, 5000).
 recvall(Ref, Timeout) ->
     #state{s = FD, serial = Serial} = getstate(Ref),
     recvall(FD, Serial, Timeout, []).
@@ -255,7 +247,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Utility functions
 %%-------------------------------------------------------------------------
 read_packet(Socket) ->
-    read_packet(Socket, 2000).
+    read_packet(Socket, 5000).
 read_packet(Socket, Timeout) when is_integer(Socket) ->
     case read_all(Socket, ?REMOTE_MESSAGE_HEADER_XDR_LEN, Timeout) of
         {ok, <<?UINT32(Len)>>} ->

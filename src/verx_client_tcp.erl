@@ -78,7 +78,7 @@ call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
     end.
 
 recv(Ref) ->
-    recv(Ref, 2000).
+    recv(Ref, 5000).
 recv(Ref, Timeout) ->
     recv(Ref, Timeout, []).
 recv(Ref, Timeout, Acc) ->
