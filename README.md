@@ -117,12 +117,28 @@ See <http://libvirt.org/html/libvirt-libvirt.html>
 
         Types   Opt = [ Options ]
                 Options = {transport, Transport}
+
+                      % Unix socket
                     | {path, unix_socket()}
+
+                      % TCP and TLS
                     | {host, ip_address()}
                     | {port, uint16()}
-                Transport = verx_client_unix | verx_client_tcp
 
-        RPC transport layer, currently only supports Unix sockets.
+                      % TLS
+                    | {cacert, path()}
+                    | {cert, path()}
+                    | {key, path()}
+                    | {depth, integer()}
+                    | {password, string()}
+                    | {ciphers, ciphers()}
+
+                Transport = verx_client_unix
+                    | verx_client_tcp
+                    | verx_client_tls
+
+        RPC transport layer, supports Unix sockets, TCP and TLS (IPv4
+        and IPV6).
 
         Options depend on the underlying transport mechanism.
 
@@ -168,6 +184,18 @@ See <http://libvirt.org/html/libvirt-libvirt.html>
     % close and stop the transport
     ok = verx:close(Ref),
     ok = verx_client:stop(Ref).
+
+    % open a TLS connection on the default ports
+    CACert = "/tmp/cert/cacert.pem",
+    Cert = "/tmp/cert/clientcert.pem",
+    Key = "/tmp/cert/clientkey.pem",
+
+    {ok, Ref} = verx_client:start([
+            {transport, verx_client_tls},
+            {cacert, CACert},
+            {cert, Cert},
+            {key, Key}
+            ]).
 
 ### CREATING A DOMAIN
 
