@@ -87,13 +87,6 @@ recv(Ref, Timeout, Acc) ->
                             type = <<?REMOTE_STREAM:32>>,
                             status = <<?REMOTE_OK:32>>}, []}} ->
             {ok, lists:reverse(Acc)};
-        % XXX A stream indicates finish by setting the status to
-        % XXX REMOTE_OK. For screenshots, an empty body is returned with the
-        % XXX status set to 'continue'.
-        {verx, Ref, {#remote_message_header{
-                        type = <<?REMOTE_STREAM:32>>,
-                        status = <<?REMOTE_CONTINUE:32>>}, <<>>}} ->
-            {ok, lists:reverse(Acc)};
         {verx, Ref, {#remote_message_header{
                         type = <<?REMOTE_STREAM:32>>,
                         status = <<?REMOTE_CONTINUE:32>>}, Payload}} ->
@@ -173,8 +166,9 @@ init([Pid, Opt]) ->
 
     % Connect to the libvirt socket
     {ok, Socket} = gen_tcp:connect(IP, Port, [
-                binary,
                 Family,
+                binary,
+                {active, false},
                 {packet, 0}
                 ]),
 
@@ -193,6 +187,7 @@ handle_call({call, Proc, Arg}, _From, #state{
                     serial = <<Serial:32>>
                     }, Call}),
     Reply = send_rpc(Socket, Message),
+    inet:setopts(Socket, [{active, once}]),
     {reply, Reply, State#state{proc = Proc, serial = Serial+1}};
 
 handle_call({send, Buf}, _From, #state{
@@ -207,6 +202,7 @@ handle_call({send, Buf}, _From, #state{
             status = <<?REMOTE_CONTINUE:32>>
             }, Buf}),
     Reply = send_rpc(Socket, Message),
+    inet:setopts(Socket, [{active, once}]),
     {reply, Reply, State};
 
 handle_call(finish, _From, #state{
@@ -221,6 +217,7 @@ handle_call(finish, _From, #state{
             status = <<?REMOTE_OK:32>>
             }),
     Reply = send_rpc(Socket, Header),
+    inet:setopts(Socket, [{active, once}]),
     {reply, Reply, State};
 
 handle_call(stop, _From, State) ->
@@ -233,11 +230,13 @@ handle_info({tcp, Socket, <<?UINT32(Len), Data/binary>>},
             #state{s = Socket,
                    pid = Pid,
                    serial = Serial} = State) when Len =:= byte_size(Data) + 4 ->
+    inet:setopts(Socket, [{active, once}]),
     reply_to_caller(Pid, Serial, Data),
     {noreply, State};
 
 handle_info({tcp, Socket, <<?UINT32(Len), Data/binary>>},
             #state{s = Socket, buf = {0, []}} = State) ->
+    inet:setopts(Socket, [{active, once}]),
     {noreply, State#state{buf = {Len, [Data]}}};
 
 handle_info({tcp, Socket, Data},
@@ -245,6 +244,7 @@ handle_info({tcp, Socket, Data},
                    pid = Pid,
                    serial = Serial,
                    buf = {Len, Buf}} = State) ->
+    inet:setopts(Socket, [{active, once}]),
     Bytes = byte_size(Data) + iolist_size(Buf) + 4,
 
     if
@@ -258,12 +258,12 @@ handle_info({tcp, Socket, Data},
             <<Bin:BufLen/bytes,
               ?UINT32(NLen),
               Rest/binary>> = iolist_to_binary([lists:reverse(Buf), Data]),
-            %error_logger:info_report([{old_len, Len}, {new_len, NLen}, {rest, byte_size(Rest)}]),
+%            error_logger:info_report([{old_len, Len}, {new_len, NLen}, {rest, byte_size(Rest)}]),
             reply_to_caller(Pid, Serial, Bin),
             {noreply, State#state{buf = {NLen, [Rest]}}};
 
         true ->
-            %error_logger:info_report([{len, Len}, {buf, byte_size(Data), iolist_size(Buf)}]),
+%            error_logger:info_report([{len, Len}, {buf, byte_size(Data), iolist_size(Buf)}]),
             {noreply, State#state{buf = {Len, [Data|Buf]}}}
     end;
 

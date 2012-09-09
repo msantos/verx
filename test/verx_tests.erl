@@ -35,13 +35,13 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("verx.hrl").
 
-vert_unix_test_() ->
-    {setup,
-     fun unix/0,
-     fun destroy/1,
-     fun(N) -> [?_test(domain_list_info(N)),
-                 ?_test(screenshot(N))] end
-    }.
+%vert_unix_test_() ->
+%    {setup,
+%     fun unix/0,
+%     fun destroy/1,
+%     fun(N) -> [?_test(domain_list_info(N)),
+%                 ?_test(screenshot(N))] end
+%    }.
 
 vert_tcp_test_() ->
     {setup,
