@@ -153,9 +153,10 @@ connect(Opt) ->
     Port = maybe_integer(proplists:get_value("port", Opt, default_port(Transport))),
 
     % TLS
-    CACert = proplists:get_value(cacert, Opt, "/etc/pki/CA/cacert.pem"),
-    Cert = proplists:get_value(cert, Opt, "/etc/pki/libvirt/clientcert.pem"),
-    Key = proplists:get_value(key, Opt, "/etc/pki/libvirt/private/clientkey.pem"),
+    CACert = proplists:get_value("cacert", Opt, "/etc/pki/CA/cacert.pem"),
+    Cert = proplists:get_value("cert", Opt, "/etc/pki/libvirt/clientcert.pem"),
+    Key = proplists:get_value("key", Opt, "/etc/pki/libvirt/private/clientkey.pem"),
+    Depth = maybe_integer(proplists:get_value("depth", Opt, "1")),
 
     {ok, Ref} = verx_client:start_link([
             {transport, Transport},
@@ -165,7 +166,8 @@ connect(Opt) ->
 
             {cacert, CACert},
             {cert, Cert},
-            {key, Key}
+            {key, Key},
+            {depth, Depth}
             ]),
     ok = verx:open(Ref, [URI, 0]),
     {ok, Ref}.

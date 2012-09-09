@@ -388,7 +388,6 @@ If there are any errors, read through `bin/gen_remote_protocol.escript`.
 * console: receive is broken (or send if using active mode)
 
 * verx\_client\_tls
-    * make sure authentication is working (cert checks)
     * single byte received before packet (works if thrown away)
 
 * verx\_client\_tcp

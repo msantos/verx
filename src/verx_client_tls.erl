@@ -164,17 +164,24 @@ init([Pid, Opt]) ->
     CACert = proplists:get_value(cacert, Opt, "/etc/pki/CA/cacert.pem"),
     Cert = proplists:get_value(cert, Opt, "/etc/pki/libvirt/clientcert.pem"),
     Key = proplists:get_value(key, Opt, "/etc/pki/libvirt/private/clientkey.pem"),
+    Depth = proplists:get_value(depth, Opt, 1),
+    Password = proplists:get_value(password, Opt, ""),
+    Ciphers = proplists:get_value(ciphers, Opt, ssl:cipher_suites()),
 
     {IP, Family} = resolv(Host),
 
-    % Connect to the libvirt socket
+    % Connect to the libvirt TLS port
     {ok, Socket} = ssl:connect(IP, Port, [
                 {cacertfile, CACert},
                 {certfile, Cert},
                 {keyfile, Key},
+                {depth, Depth},
+                {password, Password},
+                {ciphers, Ciphers},
                 Family,
                 binary,
                 {packet, 0},
+                {verify, verify_peer},
                 {active, false}
                 ]),
 
