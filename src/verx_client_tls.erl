@@ -247,8 +247,21 @@ handle_info({ssl, Socket, <<?UINT32(Len), Data/binary>>},
     ssl:setopts(Socket, [{active, once}]),
     {noreply, State#state{buf = {Len, [Data]}}};
 
-handle_info({ssl, Socket, Data},
-            #state{s = Socket, buf = {0, []}} = State) when byte_size(Data) < ?REMOTE_MESSAGE_HEADER_XDR_LEN ->
+% XXX FIXME 1 byte (<<1>>) is received at the beginning of the packet
+% XXX FIXME
+% XXX FIXME Thought it was because of this:
+% XXX FIXME
+% XXX FIXME http://erlang.org/pipermail/erlang-questions/2012-August/068632.htm
+% XXX FIXME
+% XXX FIXME But aggregating the packet resulted in an extra byte:
+% XXX FIXME
+% XXX FIXME  <<1,0,0,0,28,32,0,128,134,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0>>
+% XXX FIXME
+% XXX FIXME  i.e., a malformed packet expecting 16777216 bytes to follow
+% XXX FIXME
+% XXX FIXME So for now, the first byte is just thrown away
+handle_info({ssl, Socket, <<1>>},
+            #state{s = Socket, buf = {0, []}} = State) ->
     ssl:setopts(Socket, [{active, once}]),
     {noreply, State#state{buf = {0, []}}};
 
