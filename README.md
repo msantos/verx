@@ -139,8 +139,13 @@ See <http://libvirt.org/html/libvirt-libvirt.html>
         by making the appropriate remote protocol call, e.g.,
         verx:domain_snapshot/2.
 
-### verx\_rpc
+### verx\_client\_unix
 
+### verx\_client\_tcp
+
+### verx\_client\_tls
+
+### verx\_rpc
 
 ## EXAMPLES
 
@@ -378,10 +383,14 @@ If there are any errors, read through `bin/gen_remote_protocol.escript`.
 
 * fix broken include paths for bin/verx, include/verx.hrl
 
-* transport protocols
-    * SSL
-    * SSH
-
 * generate verx.hrl from virnetprotocol.c
 
 * console: receive is broken (or send if using active mode)
+
+* verx\_client\_tls
+    * make sure authentication is working (cert checks)
+    * single byte received before packet (works if thrown away)
+
+* verx\_client\_tcp
+    * gen\_server halts when receiving a tcp\_closed message, causes an
+      error if the caller does a verx\_client:close/1

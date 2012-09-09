@@ -85,18 +85,24 @@ call(["screenshot", Name | Arg]) ->
     Opt = getopt(Arg),
     Screen = proplists:get_value("screen", Opt, 0),
     Flags = proplists:get_value("flags", Opt, 0),
-    File = proplists:get_value("file", Opt,
-            Name ++ "_" ++ os:getpid() ++ ".screen"),
+    File = proplists:get_value("file", Opt),
     {ok, Ref} = connect(Opt),
 
     {ok, [Domain]} = lookup(Ref, {domain, Name}),
 
-    {ok, Mime} = verx:domain_screenshot(Ref, [Domain, Screen, Flags]),
+    {ok, [Mime]} = verx:domain_screenshot(Ref, [Domain, Screen, Flags]),
     {ok, Buf} = verx_client:recvall(Ref),
 
-    ok = file:write_file(File, Buf),
+    File1 = case File of
+        undefined ->
+            Name ++ "_" ++ os:getpid() ++ mime_ext(Mime);
+        _ ->
+            File
+    end,
 
-    rp({ok, Mime, File});
+    ok = file:write_file(File1, Buf),
+
+    rp({ok, Mime, File1});
 
 call(["shutdown", Name | Arg]) ->
     Opt = getopt(Arg),
@@ -139,17 +145,27 @@ connect(Opt) ->
                     "verx_client_unix")),
 
     % Unix socket
-    Path = proplists:get_value("path", Opt, "/var/run/libvirt/libvirt-sock"),
+    Path = proplists:get_value("path", Opt, ?LIBVIRT_SOCK_PATH),
 
-    % TCP
+    % TCP and TLS
     Host = proplists:get_value("host", Opt, "127.0.0.1"),
-    Port = list_to_integer(proplists:get_value("port", Opt, "16509")),
+
+    Port = maybe_integer(proplists:get_value("port", Opt, default_port(Transport))),
+
+    % TLS
+    CACert = proplists:get_value(cacert, Opt, "/etc/pki/CA/cacert.pem"),
+    Cert = proplists:get_value(cert, Opt, "/etc/pki/libvirt/clientcert.pem"),
+    Key = proplists:get_value(key, Opt, "/etc/pki/libvirt/private/clientkey.pem"),
 
     {ok, Ref} = verx_client:start_link([
             {transport, Transport},
             {path, Path},
             {host, Host},
-            {port, Port}
+            {port, Port},
+
+            {cacert, CACert},
+            {cert, Cert},
+            {key, Key}
             ]),
     ok = verx:open(Ref, [URI, 0]),
     {ok, Ref}.
@@ -194,3 +210,13 @@ lookup_1([Fun|Tail], Acc) ->
         _:_ ->
             lookup_1(Tail, Acc)
     end.
+
+maybe_integer(N) when is_integer(N) -> N;
+maybe_integer(N) when is_list(N) -> list_to_integer(N).
+
+default_port(verx_client_tcp) -> ?LIBVIRT_TCP_PORT;
+default_port(verx_client_tls) -> ?LIBVIRT_TLS_PORT;
+default_port(_) -> 0.
+
+mime_ext(<<"image/x-portable-pixmap">>) -> ".ppm";
+mime_ext(_) -> ".screen".

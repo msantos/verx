@@ -37,12 +37,15 @@
 
 
 verx_test_() ->
-    {timeout, 60, [
+    {timeout, 120, [
             {?LINE, fun() -> run_vm(verx_client_unix) end},
-            {?LINE, fun() -> run_vm(verx_client_tcp) end}
+            {?LINE, fun() -> run_vm(verx_client_tcp) end},
+            {?LINE, fun() -> run_vm(verx_client_tls) end}
             ]}.
 
 run_vm(Transport) ->
+    error_logger:info_report([{transport, Transport}]),
+
     {ok, Ref} = verx_client:start([{transport, Transport}]),
     ok = verx:open(Ref),
     {ok, Domain} = create(Ref),
@@ -124,4 +127,5 @@ destroy(Ref, Domain)  ->
     ok = verx:domain_destroy(Ref, [Domain]),
     ok = verx:domain_undefine(Ref, [Domain]),
     verx:close(Ref),
-    verx_client:stop(Ref).
+    catch verx_client:stop(Ref),
+    ok.
