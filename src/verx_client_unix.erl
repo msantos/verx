@@ -55,7 +55,7 @@
     path,       % Unix socket path
     s,          % Unix socket fd
     proc,       % last called procedure
-    serial = 0  % serial number
+    serial = -1 % serial number
     }).
 
 
@@ -65,6 +65,8 @@
 call(Ref, Proc) ->
     call(Ref, Proc, []).
 call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
+    ok = gen_server:call(Ref, {call, Proc, Arg}),
+
     #state{s = Socket, serial = Serial} = getstate(Ref),
 
     {Header, Call} = verx_rpc:call(Proc, Arg),
@@ -214,7 +216,7 @@ init([Opt]) ->
             }}.
 
 
-handle_call({call, Proc, Message}, _From, #state{serial = Serial} = State) when is_binary(Message) ->
+handle_call({call, Proc, _Message}, _From, #state{serial = Serial} = State) ->
     {reply, ok, State#state{proc = Proc, serial = Serial+1}};
 
 handle_call(getfd, _From, #state{s = Socket} = State) ->

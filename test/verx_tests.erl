@@ -37,7 +37,7 @@
 
 
 verx_test_() ->
-    {timeout, 120, [
+    {timeout, 180, [
             {?LINE, fun() -> run_vm(verx_client_unix) end},
             {?LINE, fun() -> run_vm(verx_client_tcp) end},
             {?LINE, fun() -> run_vm(verx_client_tls) end}
