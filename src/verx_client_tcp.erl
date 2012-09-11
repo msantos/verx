@@ -33,6 +33,7 @@
 
 -include_lib("kernel/include/inet.hrl").
 -include("verx.hrl").
+-include("verx_client.hrl").
 
 -export([
     call/2, call/3,
@@ -49,12 +50,6 @@
 -export([start/0, start/1, stop/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
         terminate/2, code_change/3]).
-
--record(verx_buf, {
-        len = 0,
-        buflen = 0,
-        buf = []
-        }).
 
 -record(state, {
         pid,
@@ -295,7 +290,6 @@ reply_to_caller(Pid, Serial0, Data) ->
     Serial = Serial0 - 1,
     case {Type, RSerial} of
         {N, Serial} when N =:= ?REMOTE_REPLY; N =:= ?REMOTE_STREAM ->
-            {_,D} = Reply,
             Pid ! {verx, self(), Reply};
         {?REMOTE_MESSAGE, 0} ->
             Pid ! {verx, self(), Reply};
