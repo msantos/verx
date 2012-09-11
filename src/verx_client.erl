@@ -29,6 +29,8 @@
 %% ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 %% POSSIBILITY OF SUCH DAMAGE.
 -module(verx_client).
+-include("verx.hrl").
+-include("verx_client.hrl").
 
 -export([start_link/0, start_link/1]).
 -export([start/0, start/1, stop/1]).
@@ -40,6 +42,7 @@
     recvall/1, recvall/2,
     finish/1
     ]).
+-export([stream/2]).
 
 
 %%-------------------------------------------------------------------------
@@ -90,3 +93,69 @@ recvall({Module, Ref}, Timeout) ->
 
 finish({Module, Ref}) ->
     Module:finish(Ref).
+
+%%-------------------------------------------------------------------------
+%%% Utility functions
+%%-------------------------------------------------------------------------
+
+% Parse a stream of bytes into remote protocol messages
+%
+% Must be able to read the 4 byte length header or will
+% crash.
+
+stream(Data, Buf) ->
+    stream(Data, Buf, []).
+
+% Complete message
+stream(<<?UINT32(Len), Data/binary>>, #verx_buf{
+                len = 0,
+                buflen = 0,
+                buf = []
+                }, Acc)
+        when Len =:= byte_size(Data) + ?REMOTE_MESSAGE_HEADER_XDR_LEN ->
+    {lists:reverse([Data|Acc]), #verx_buf{}};
+
+% Length followed by fragmented message
+stream(<<?UINT32(Len), Data/binary>>, #verx_buf{
+                len = 0,
+                buflen = 0,
+                buf = []
+                }, Acc) ->
+    {lists:reverse(Acc), #verx_buf{
+            len = Len,
+            buflen = byte_size(Data),
+            buf = [Data]
+            }};
+
+% Frag completes the message
+stream(Data, #verx_buf{
+                len = Len,
+                buflen = BufLen,
+                buf = Buf
+                }, Acc)
+        when Len =:= byte_size(Data) + BufLen + ?REMOTE_MESSAGE_HEADER_XDR_LEN ->
+    Bin = iolist_to_binary([lists:reverse(Buf), Data]),
+    {lists:reverse([Bin|Acc]), #verx_buf{}};
+
+% Frag + new message
+stream(Data, #verx_buf{
+                len = Len,
+                buflen = BufLen,
+                buf = Buf
+                }, Acc)
+        when Len < byte_size(Data) + BufLen + ?REMOTE_MESSAGE_HEADER_XDR_LEN ->
+    MLen = Len - 4,
+    <<Bin:MLen/bytes, Rest/binary>> = iolist_to_binary([lists:reverse(Buf), Data]),
+    stream(Rest, #verx_buf{}, [Bin|Acc]);
+
+% More frag
+stream(Data, #verx_buf{
+                len = Len,
+                buflen = BufLen,
+                buf = Buf
+                }, Acc) ->
+    {lists:reverse(Acc), #verx_buf{
+            len = Len,
+            buflen = BufLen + iolist_size(Data),
+            buf = [Data|Buf]
+            }}.

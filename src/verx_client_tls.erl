@@ -33,6 +33,7 @@
 
 -include_lib("kernel/include/inet.hrl").
 -include("verx.hrl").
+-include("verx_client.hrl").
 
 -export([
     call/2, call/3,
@@ -55,7 +56,7 @@
         s,          % socket
         proc,       % last called procedure
         serial = 0, % serial number
-        buf = {0, []}
+        buf = #verx_buf{}
         }).
 
 
@@ -268,50 +269,19 @@ handle_info({ssl, Socket, <<?UINT32(Len), Data/binary>>},
 % XXX FIXME
 % XXX FIXME So for now, the first byte is just thrown away
 handle_info({ssl, Socket, <<1>>},
-            #state{s = Socket, buf = {0, []}} = State) ->
+            #state{s = Socket} = State) ->
     ssl:setopts(Socket, [{active, once}]),
-    {noreply, State#state{buf = {0, []}}};
+    {noreply, State};
 
 handle_info({ssl, Socket, Data},
             #state{s = Socket,
                    pid = Pid,
                    serial = Serial,
-                   buf = {Len, Buf}} = State) ->
+                   buf = Buf} = State) ->
     ssl:setopts(Socket, [{active, once}]),
-    Bytes = byte_size(Data) + iolist_size(Buf),
-
-    if
-%        Len =:= 0, Bytes < ?REMOTE_MESSAGE_HEADER_XDR_LEN ->
-%            {noreply, State#state{buf = {0, [Data|Buf]}}};
-%
-%        Len =:= 0, Bytes >= ?REMOTE_MESSAGE_HEADER_XDR_LEN ->
-%            <<?UINT32(NLen), Rest/binary>> = iolist_to_binary([lists:reverse(Buf), Data]),
-%            error_logger:info_report([{nlen, NLen}, {bytes, Bytes-1}, {rest, byte_size(Rest)}]),
-%            if NLen =:= byte_size(Rest) + ?REMOTE_MESSAGE_HEADER_XDR_LEN ->
-%                    reply_to_caller(Pid, Serial, Rest),
-%                    {noreply, State#state{buf = {0, []}}};
-%               true ->
-%                    {noreply, State#state{buf = {NLen, [Rest]}}}
-%            end;
-
-        Len =:= Bytes + ?REMOTE_MESSAGE_HEADER_XDR_LEN ->
-            Bin = iolist_to_binary([lists:reverse(Buf), Data]),
-%            error_logger:info_report([{len, Len}, {bytes, Bytes}]),
-            reply_to_caller(Pid, Serial, Bin),
-            {noreply, State#state{buf = {0, []}}};
-
-        Len < Bytes + ?REMOTE_MESSAGE_HEADER_XDR_LEN ->
-            BufLen = Len - ?REMOTE_MESSAGE_HEADER_XDR_LEN,
-            <<Bin:BufLen/bytes,
-              ?UINT32(NLen),
-              Rest/binary>> = iolist_to_binary([lists:reverse(Buf), Data]),
-%            error_logger:info_report([{len, Len}, {nlen, NLen}, {bytes, byte_size(Rest)}]),
-            reply_to_caller(Pid, Serial, Bin),
-            {noreply, State#state{buf = {NLen, [Rest]}}};
-
-        true ->
-            {noreply, State#state{buf = {Len, [Data|Buf]}}}
-    end;
+    {Msgs, Rest} = verx_client:stream(Data, Buf),
+    [ reply_to_caller(Pid, Serial, Msg) || Msg <- Msgs ],
+    {noreply, State#state{buf = Rest}};
 
 handle_info({ssl_closed, Socket}, #state{s = Socket} = State) ->
     {stop, {shutdown, ssl_closed}, State};

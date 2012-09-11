@@ -37,7 +37,7 @@
 
 
 verx_test_() ->
-    {timeout, 180, [
+    {timeout, 120, [
             {?LINE, fun() -> run_vm(verx_client_unix) end},
             {?LINE, fun() -> run_vm(verx_client_tcp) end},
             {?LINE, fun() -> run_vm(verx_client_tls) end}
@@ -51,7 +51,11 @@ run_vm(Transport) ->
     {ok, Domain} = create(Ref),
 
     [ begin ok = ?MODULE:Fun({Ref, Domain}) end ||
-        Fun <- [domain_list_info, screenshot] ],
+        Fun <- [
+            domain_list_info,
+            screenshot,
+            node_info
+            ] ],
 
     ok = destroy(Ref, Domain),
 
@@ -103,6 +107,32 @@ screenshot({Ref, Domain}) ->
     error_logger:info_report([{screenshot, Mime, File}]),
 
     ok.
+
+node_info({Ref, _Domain}) ->
+    [ begin
+            Reply = case Proc of
+                {Call, Arg} -> verx:Call(Ref, Arg);
+                Call -> verx:Call(Ref)
+            end,
+            result(Proc, Reply)
+      end || Proc <- [
+                node_get_info,
+                {node_get_cells_free_memory, [0, 100]},
+                get_version,
+                get_lib_version,
+                get_hostname,
+                get_uri,
+                node_get_free_memory,
+                node_get_security_model,
+                is_secure,
+                get_capabilities
+                ] ],
+    ok.
+
+result(Call, {ok, N}) ->
+    error_logger:info_report([{call, Call}] ++ N);
+result(Call, {error, _Error} = N) ->
+    error_logger:error_report([{call, Call}] ++ N).
 
 
 %%-------------------------------------------------------------------------

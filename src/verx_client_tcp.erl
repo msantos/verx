@@ -50,12 +50,18 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
         terminate/2, code_change/3]).
 
+-record(verx_buf, {
+        len = 0,
+        buflen = 0,
+        buf = []
+        }).
+
 -record(state, {
         pid,
-        s,          % socket
-        proc,       % last called procedure
-        serial = 0, % serial number
-        buf = {0, []}
+        s,                  % socket
+        proc,               % last called procedure
+        serial = 0,         % serial number
+        buf = #verx_buf{}
         }).
 
 
@@ -121,7 +127,10 @@ recvall(Ref, Timeout, Acc) ->
             error_logger:info_report([{got, Buf}])
     after
         Timeout ->
-            {ok, lists:reverse(Acc)}
+            case length(Acc) of
+                0 -> {error, eagain};
+                _ -> {ok, lists:reverse(Acc)}
+            end
     end.
 
 send(_Ref, []) ->
@@ -224,46 +233,19 @@ handle_call(stop, _From, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info({tcp, Socket, <<?UINT32(Len), Data/binary>>},
-            #state{s = Socket,
-                   pid = Pid,
-                   serial = Serial} = State) when Len =:= byte_size(Data) + 4 ->
-    inet:setopts(Socket, [{active, once}]),
-    reply_to_caller(Pid, Serial, Data),
-    {noreply, State};
-
-handle_info({tcp, Socket, <<?UINT32(Len), Data/binary>>},
-            #state{s = Socket, buf = {0, []}} = State) ->
-    inet:setopts(Socket, [{active, once}]),
-    {noreply, State#state{buf = {Len, [Data]}}};
+%%
+%% Reply from libvirtd
+%%
 
 handle_info({tcp, Socket, Data},
             #state{s = Socket,
                    pid = Pid,
                    serial = Serial,
-                   buf = {Len, Buf}} = State) ->
+                   buf = Buf} = State) ->
     inet:setopts(Socket, [{active, once}]),
-    Bytes = byte_size(Data) + iolist_size(Buf) + 4,
-
-    if
-        Bytes =:= Len ->
-            Bin = iolist_to_binary([lists:reverse(Buf), Data]),
-            reply_to_caller(Pid, Serial, Bin),
-            {noreply, State#state{buf = {0, []}}};
-
-        Bytes > Len ->
-            BufLen = Len - 4,
-            <<Bin:BufLen/bytes,
-              ?UINT32(NLen),
-              Rest/binary>> = iolist_to_binary([lists:reverse(Buf), Data]),
-%            error_logger:info_report([{old_len, Len}, {new_len, NLen}, {rest, byte_size(Rest)}]),
-            reply_to_caller(Pid, Serial, Bin),
-            {noreply, State#state{buf = {NLen, [Rest]}}};
-
-        true ->
-%            error_logger:info_report([{len, Len}, {buf, byte_size(Data), iolist_size(Buf)}]),
-            {noreply, State#state{buf = {Len, [Data|Buf]}}}
-    end;
+    {Msgs, Rest} = verx_client:stream(Data, Buf),
+    [ reply_to_caller(Pid, Serial, Msg) || Msg <- Msgs ],
+    {noreply, State#state{buf = Rest}};
 
 handle_info({tcp_closed, Socket}, #state{s = Socket} = State) ->
     {stop, {shutdown, tcp_closed}, State};
@@ -313,6 +295,7 @@ reply_to_caller(Pid, Serial0, Data) ->
     Serial = Serial0 - 1,
     case {Type, RSerial} of
         {N, Serial} when N =:= ?REMOTE_REPLY; N =:= ?REMOTE_STREAM ->
+            {_,D} = Reply,
             Pid ! {verx, self(), Reply};
         {?REMOTE_MESSAGE, 0} ->
             Pid ! {verx, self(), Reply};
