@@ -6,8 +6,11 @@
 %%%
 
 main([]) ->
-    main([["testvm"]]);
+    main([["localvm"]]);
 main(Hosts) ->
+    true = code:add_pathz(filename:dirname(escript:script_name())
+            ++ "/../deps/procket/ebin"),
+
     Commands = [
         "uci batch <<-EOF",
         "delete network.lan",
@@ -20,10 +23,14 @@ main(Hosts) ->
     [ send(Host, Commands) || Host <- Hosts ].
 
 send(Host, Cmd) ->
-    {ok, Ref} = vert_console:open(Host),
-    lists:foreach(fun(C) ->
-            error_logger:info_report([{cmd, Host, C}]),
-            ok = vert_console:send(Ref, C)
-            end,
-            Cmd),
-    vert_console:close(Ref).
+    {ok, Ref} = console(Host),
+    ok = verx_client:send(Ref, [ list_to_binary([C, "\n"]) || C <- Cmd ]),
+    ok = verx:close(Ref),
+    verx_client:stop(Ref).
+
+console(Host) ->
+    {ok, Ref} = verx_client:start(),
+    ok = verx:open(Ref),
+    {ok, [Domain]} = verx:lookup(Ref, {domain, Host}),
+    ok = verx:domain_open_console(Ref, [Domain, void, 0]),
+    {ok, Ref}.

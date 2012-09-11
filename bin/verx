@@ -7,7 +7,7 @@
 -include("$PWD/include/verx.hrl").
 
 main(Opt) ->
-    % load vert
+    % load verx
     true = code:add_pathz(filename:dirname(escript:script_name())
         ++ "/../ebin"),
 

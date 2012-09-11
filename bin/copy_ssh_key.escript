@@ -6,9 +6,12 @@
 %%%
 
 main([]) ->
-    main([["testvm"]]);
+    main([["localvm"]]);
 
 main(Hosts) ->
+    true = code:add_pathz(filename:dirname(escript:script_name())
+            ++ "/../deps/procket/ebin"),
+
     Dir = os:getenv("HOME") ++ "/.ssh/",
 
     Path = hd([ Dir ++ N || N <- ["id_rsa.pub", "id_dsa.pub"],
@@ -54,13 +57,10 @@ firewall(Host) ->
     send(Host, Cmd).
 
 send(Host, Cmd) ->
-    {ok, Ref} = vert_console:open(Host),
-    lists:foreach(fun(C) ->
-            error_logger:info_report([{cmd, Host, C}]),
-            ok = vert_console:send(Ref, C)
-        end,
-        Cmd),
-    vert_console:close(Ref).
+    {ok, Ref} = console(Host),
+    verx_client:send(Ref, [ list_to_binary([C, "\n"]) || C <- Cmd ]),
+    verx:close(Ref),
+    verx_client:stop(Ref).
 
 chunk(Bin) ->
     chunk(Bin, []).
@@ -68,3 +68,10 @@ chunk(Bin, Chunks) when byte_size(Bin) < 128 ->
     lists:reverse([Bin|Chunks]);
 chunk(<<Bin:128/bytes, Rest/binary>>, Chunks) ->
     chunk(Rest, [Bin|Chunks]).
+
+console(Host) ->
+    {ok, Ref} = verx_client:start(),
+    ok = verx:open(Ref),
+    {ok, [Domain]} = verx:lookup(Ref, {domain, Host}),
+    ok = verx:domain_open_console(Ref, [Domain, void, 0]),
+    {ok, Ref}.
