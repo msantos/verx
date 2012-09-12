@@ -28,6 +28,9 @@ call(["capabilities" | Arg]) ->
     {ok, Ref} = connect(Opt),
     rp(verx:get_capabilities(Ref));
 
+call(["ctl-alt-del", Name | Arg]) ->
+    call(["send-key", Name, "29 56 111" | Arg]);
+
 call(["create", Name | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
@@ -104,6 +107,31 @@ call(["screenshot", Name | Arg]) ->
 
     rp({ok, Mime, File1});
 
+call(["send", Name | Arg]) ->
+    {Opt, Cmd} = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+    {ok, [Domain]} = lookup(Ref, {domain, Name}),
+    ok = verx:domain_open_console(Ref, [Domain, void, 0]),
+    rp(verx_client:send(Ref, [ list_to_binary([C, "\n"]) || C <- Cmd ]));
+
+call(["send-key", Name, Keycode | Arg]) ->
+    Opt = getopt(Arg),
+    Codeset = list_to_integer(proplists:get_value("codeset", Opt, "0")),
+    Holdtime = list_to_integer(proplists:get_value("holdtime", Opt, "0")),
+    Flags = list_to_integer(proplists:get_value("flags", Opt, "0")),
+
+    {ok, Ref} = connect(Opt),
+    {ok, [Domain]} = lookup(Ref, {domain, Name}),
+
+    rp(verx:domain_send_key(Ref, [
+        Domain,
+        Codeset,
+        Holdtime,
+        [ list_to_integer(N) ||
+            N <- string:tokens(Keycode, " ") ],
+        Flags]
+    ));
+
 call(["shutdown", Name | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
@@ -120,12 +148,15 @@ call(_) ->
     Help = [
         "capabilities",
         "create",
+        "ctl-alt-del",
         "define",
         "destroy",
         "dumpxml",
         "list",
         "list --all",
         "screenshot",
+        "send",
+        "send-key",
         "undefine"
     ],
     rp(Help),
@@ -181,7 +212,9 @@ getopt(["--" ++ Key, "--" ++ _ = Val | Rest], Acc) ->
 getopt(["--" ++ Key], Acc) ->
     getopt([], [{Key, true}|Acc]);
 getopt(["--" ++ Key, Val | Rest], Acc) ->
-    getopt(Rest, [{Key, Val}|Acc]).
+    getopt(Rest, [{Key, Val}|Acc]);
+getopt(Rest, Acc) ->
+    {lists:reverse(Acc), Rest}.
 
 domains(Ref, Domains) ->
     [ begin
