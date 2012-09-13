@@ -396,6 +396,54 @@ Here is an example of using the libvirt stream interface.
 
         {ok, Mime, File}.
 
+## CREATING LINUX CONTAINERS
+
+This example will generate many Linux containers (LXC) attached to a
+bridge (br0).
+
+    -module(clxc).
+    -export([start/2, start/3, create/2, template/2]).
+
+    start(Prefix, Num) ->
+        {ok, Ref} = verx_client:start(),
+        ok = verx:open(Ref, ["lxc:///", 0]),
+        start(Ref, Prefix, Num).
+
+    start(_Ref, _Prefix, 0) ->
+        ok;
+
+    start(Ref, Prefix, Num) ->
+        Name = Prefix ++ integer_to_list(Num),
+
+        <<Bytes:3/bytes, _/binary>> = erlang:md5(Name),
+        Macaddr = "52:54:00:" ++ string:join([ httpd_util:integer_to_hexlist(N)
+            || <<N:8>> <= Bytes ], ":"),
+
+        XML = template(Name, Macaddr),
+        ok = create(Ref, XML),
+
+        start(Ref, Prefix, Num-1).
+
+    create(Ref, XML) ->
+        {ok, [Domain]} = verx:domain_define_xml(Ref, [XML]),
+        verx:domain_create(Ref, [Domain]).
+
+    template(Name, Macaddr) ->
+    "<domain type='lxc'>
+        <name>" ++ Name ++ "</name>
+        <memory>102400</memory>
+        <os>
+            <type>exe</type>
+            <init>/bin/sh</init>
+        </os>
+        <devices>
+            <console type='pty'/>
+            <interface type='bridge'>
+                <mac address='" ++ Macaddr ++ "'/>
+                <source bridge='br0'/>
+            </interface>
+        </devices>
+    </domain>".
 
 ## GENERATING THE REMOTE PROTOCOL MODULE
 
@@ -423,3 +471,6 @@ If there are any errors, read through `bin/gen_remote_protocol.escript`.
 * verx\_client\_tcp
     * gen\_server halts when receiving a tcp\_closed message, causes an
       error if the caller does a verx\_client:close/1
+
+* need to support multiple, active calls?
+    * have a process per serial number with a timeout

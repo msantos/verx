@@ -38,17 +38,21 @@
 
 verx_test_() ->
     {timeout, 120, [
-            {?LINE, fun() -> run_vm(verx_client_unix) end},
-            {?LINE, fun() -> run_vm(verx_client_tcp) end},
-            {?LINE, fun() -> run_vm(verx_client_tls) end}
+            {?LINE, fun() -> run(kvm, verx_client_unix) end},
+            {?LINE, fun() -> run(kvm, verx_client_tcp) end},
+            {?LINE, fun() -> run(kvm, verx_client_tls) end},
+
+            {?LINE, fun() -> run(lxc, verx_client_unix) end},
+            {?LINE, fun() -> run(lxc, verx_client_tcp) end},
+            {?LINE, fun() -> run(lxc, verx_client_tls) end}
             ]}.
 
-run_vm(Transport) ->
-    error_logger:info_report([{transport, Transport}]),
+run(kvm, Transport) ->
+    error_logger:info_report([{vm, kvm}, {transport, Transport}]),
 
     {ok, Ref} = verx_client:start([{transport, Transport}]),
     ok = verx:open(Ref),
-    {ok, Domain} = create(Ref),
+    {ok, Domain} = create(kvm, Ref),
 
     [ begin ok = ?MODULE:Fun({Ref, Domain}) end ||
         Fun <- [
@@ -56,6 +60,20 @@ run_vm(Transport) ->
             screenshot,
             node_info
             ] ],
+
+    ok = destroy(Ref, Domain),
+
+    ok;
+
+run(lxc, Transport) ->
+    error_logger:info_report([{vm, lxc}, {transport, Transport}]),
+
+    {ok, Ref} = verx_client:start([{transport, Transport}]),
+    ok = verx:open(Ref, ["lxc:///", 0]),
+    {ok, Domain} = create(lxc, Ref),
+
+    % XXX be careful here, the container is running as root
+    ok = console_create_file(Ref, Transport, Domain),
 
     ok = destroy(Ref, Domain),
 
@@ -139,7 +157,7 @@ result(Call, {error, _Error} = N) ->
 %%% Internal functions
 %%-------------------------------------------------------------------------
 
-create(Ref) ->
+create(kvm, Ref) ->
     Path = filename:join([
             filename:dirname(code:which(vert)),
             "..",
@@ -151,11 +169,56 @@ create(Ref) ->
 
     {ok, [Domain]} = verx:domain_define_xml(Ref, [XML]),
     ok = verx:domain_create(Ref, [Domain]),
+    {ok, Domain};
+
+create(lxc, Ref) ->
+    Name = "test-" ++ integer_to_list(erlang:phash2(Ref)),
+
+    <<Bytes:3/bytes, _/binary>> = erlang:md5(Name),
+    Macaddr = "52:54:00:" ++ string:join([ httpd_util:integer_to_hexlist(N)
+        || <<N:8>> <= Bytes ], ":"),
+
+    XML = template(Name, Macaddr),
+
+    {ok, [Domain]} = verx:domain_define_xml(Ref, [XML]),
+    verx:domain_create(Ref, [Domain]),
+
     {ok, Domain}.
+
+template(Name, Macaddr) ->
+"<domain type='lxc'>
+    <name>" ++ Name ++ "</name>
+    <memory>102400</memory>
+    <os>
+        <type>exe</type>
+        <init>/bin/sh</init>
+    </os>
+    <devices>
+        <console type='pty'/>
+            <interface type='bridge'>
+                <mac address='" ++ Macaddr ++ "'/>
+                <source bridge='br0'/>
+            </interface>
+    </devices>
+</domain>".
 
 destroy(Ref, Domain)  ->
     ok = verx:domain_destroy(Ref, [Domain]),
     ok = verx:domain_undefine(Ref, [Domain]),
     verx:close(Ref),
     catch verx_client:stop(Ref),
+    ok.
+
+console_create_file(Ref, verx_client_unix, Domain) ->
+    File = "/tmp/console-test-" ++ os:getpid(),
+    {ok, FH} = file:open(File, [raw, write, exclusive]),
+    ok = file:close(FH),
+    ok = verx:domain_open_console(Ref, [Domain, void, 0]),
+    ok = verx_client:send(Ref, [list_to_binary(["/bin/rm ", File, "\n"])]),
+    verx_client:finish(Ref),
+    % XXX race condition: must wait for the file to disappear from /tmp
+    timer:sleep(1000),
+    {error, enoent} = file:read_file(File),
+    ok;
+console_create_file(_Ref, _, _Domain) ->
     ok.
