@@ -40,7 +40,9 @@
     send/2,
     recv/1, recv/2,
     recvall/1, recvall/2,
-    finish/1
+    finish/1,
+
+    getserial/1
     ]).
 -export([stream/2]).
 
@@ -93,6 +95,9 @@ recvall({Module, Ref}, Timeout) ->
 
 finish({Module, Ref}) ->
     Module:finish(Ref).
+
+getserial({Module, Ref}) ->
+    Module:getserial(Ref).
 
 %%-------------------------------------------------------------------------
 %%% Utility functions

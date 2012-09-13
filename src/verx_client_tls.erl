@@ -47,7 +47,7 @@
     send/2,
     finish/1,
 
-    getfd/1
+    getserial/1
     ]).
 -export([start_link/0, start_link/1]).
 -export([start/0, start/1, stop/1]).
@@ -151,8 +151,9 @@ send(Ref, [Buf|Rest]) when is_binary(Buf) ->
 finish(Ref) when is_pid(Ref) ->
     gen_server:call(Ref, finish, infinity).
 
-getfd(Ref) when is_pid(Ref) ->
-    gen_server:call(Ref, getfd).
+getserial(Ref) when is_pid(Ref) ->
+    #state{serial = Serial} = gen_server:call(Ref, getstate),
+    Serial.
 
 start() ->
     start([]).

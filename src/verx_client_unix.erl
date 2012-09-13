@@ -46,6 +46,7 @@
     send/2,
     finish/1,
 
+    getserial/1,
     getfd/1
     ]).
 -export([read_packet/1, read_packet/2]).
@@ -200,8 +201,13 @@ finish(Ref) when is_pid(Ref) ->
     Len = ?REMOTE_MESSAGE_HEADER_XDR_LEN + byte_size(Header),
     procket:write(FD, <<Len:32, Header/binary>>).
 
+getserial(Ref) when is_pid(Ref) ->
+    #state{serial = Serial} = gen_server:call(Ref, getstate),
+    Serial.
+
 getfd(Ref) when is_pid(Ref) ->
-    gen_server:call(Ref, getfd).
+    #state{s = FD} = gen_server:call(Ref, getfd),
+    FD.
 
 start() ->
     start([]).
@@ -244,9 +250,6 @@ init([Opt]) ->
 handle_call({call, Proc, _Message}, _From, #state{serial = Serial} = State) ->
     Serial1 = Serial + 1,
     {reply, {ok, Serial1}, State#state{proc = Proc, serial = Serial1}};
-
-handle_call(getfd, _From, #state{s = Socket} = State) ->
-    {reply, Socket, State};
 
 handle_call(getstate, _From, State) ->
     {reply, State, State};
