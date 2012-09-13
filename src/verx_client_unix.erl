@@ -76,11 +76,22 @@ call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
 
     ok = procket:write(Socket, [<<?UINT32(Len)>>, Message]),
 
+    call_1(Socket, Serial).
+
+call_1(Socket, Serial) ->
     case read_packet(Socket) of
         {ok, Buf} ->
             Reply = verx_rpc:decode(Buf),
-            {#remote_message_header{serial = <<Serial:32>>}, _} = Reply,
-            verx_rpc:status(Reply);
+            case Reply of
+                {#remote_message_header{serial = <<Serial:32>>}, _} ->
+                    verx_rpc:status(Reply);
+                {#remote_message_header{serial = <<RSerial:32>>}, _} ->
+                    % message with old/out of order serial number
+                    error_logger:error_report([
+                            {out_of_sync, RSerial, Serial, Reply}
+                            ]),
+                    call_1(Socket, Serial)
+            end;
         Error ->
             Error
     end.

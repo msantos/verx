@@ -68,9 +68,15 @@ call(Ref, Proc) ->
 call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
     ok = gen_server:call(Ref, {call, Proc, Arg}, infinity),
 
+    call_1(Ref).
+
+call_1(Ref) ->
     receive
         {verx, Ref, Reply} ->
-            verx_rpc:status(Reply)
+            verx_rpc:status(Reply);
+        {verx, Ref, {out_of_sync, _, _, _} = Reply} ->
+            error_logger:error_report(Reply),
+            call_1(Ref)
     after
         5000 ->
             {error, eagain}
@@ -324,7 +330,6 @@ send_rpc(Socket, Buf) ->
 reply_to_caller(Pid, Serial0, Data) ->
     Reply = verx_rpc:decode(Data),
     {#remote_message_header{type = <<?UINT32(Type)>>,
-                            proc = Proc,
                             serial = <<?UINT32(RSerial)>>}, _} = Reply,
 
     % serial increments on every call
@@ -335,12 +340,6 @@ reply_to_caller(Pid, Serial0, Data) ->
         {?REMOTE_MESSAGE, 0} ->
             Pid ! {verx, self(), Reply};
         _ ->
-            Pid ! {verx, self(),
-                   {out_of_sync,
-                    element(1, remote_protocol_xdr:dec_remote_procedure(Proc, 0)),
-                    Type,
-                    RSerial,
-                    Serial}
-                  }
+            Pid ! {verx, self(), {out_of_sync, RSerial, Serial, Reply}}
     end,
     ok.
