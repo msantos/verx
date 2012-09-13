@@ -69,8 +69,10 @@
 call(Ref, Proc) ->
     call(Ref, Proc, []).
 call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
-    {ok, Serial} = cast(Ref, Proc, Arg, infinity),
-    reply(Ref, Serial).
+    case cast(Ref, Proc, Arg, infinity) of
+        {ok, Serial} -> reply(Ref, Serial);
+        Error -> Error
+    end.
 
 cast(Ref, Proc) ->
     cast(Ref, Proc, [], infinity).
@@ -83,7 +85,9 @@ reply(Ref, Serial) ->
     reply(Ref, Serial, infinity).
 reply(Ref, Serial, Timeout) ->
     receive
-        {verx, Ref, {#remote_message_header{serial = <<Serial:32>>, type = <<?REMOTE_REPLY:32>>}, _} = Reply} ->
+        {verx, Ref, {#remote_message_header{
+                            serial = <<Serial:32>>,
+                            type = <<?REMOTE_REPLY:32>>}, _} = Reply} ->
             verx_rpc:status(Reply)
     after
         Timeout ->
