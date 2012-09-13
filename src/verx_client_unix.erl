@@ -68,16 +68,18 @@
 call(Ref, Proc) ->
     call(Ref, Proc, []).
 call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
-    {ok, Serial} = cast(Ref, Proc, Arg),
-    reply(Ref, Serial).
+    case cast(Ref, Proc, Arg) of
+        {ok, Serial} -> reply(Ref, Serial);
+        Error -> Error
+    end.
 
 cast(Ref, Proc) ->
     cast(Ref, Proc, [], infinity).
 cast(Ref, Proc, Arg) ->
     cast(Ref, Proc, Arg, infinity).
 cast(Ref, Proc, Arg, Timeout) ->
-    ok = gen_server:call(Ref, {call, Proc, Arg}, Timeout),
-    #state{s = Socket, serial = Serial} = getstate(Ref),
+    {ok, Serial} = gen_server:call(Ref, {call, Proc, Arg}, Timeout),
+    #state{s = Socket} = getstate(Ref),
     {Header, Call} = verx_rpc:call(Proc, Arg),
     Message = verx_rpc:encode({Header#remote_message_header{serial = <<Serial:32>>}, Call}),
     Len = ?REMOTE_MESSAGE_HEADER_XDR_LEN + byte_size(Message),
@@ -136,37 +138,38 @@ recv(Ref, Serial, Timeout, Acc) ->
 recvall(Ref) ->
     recvall(Ref, 5000).
 recvall(Ref, Timeout) ->
-    #state{s = FD, serial = Serial} = getstate(Ref),
-    recvall(FD, Serial, Timeout, []).
-recvall(FD, Serial, Timeout, Acc) ->
-    case read_packet(FD, Timeout) of
-        {ok, Bin} ->
-            case verx_rpc:decode(Bin) of
-                {#remote_message_header{
-                                type = <<?REMOTE_STREAM:32>>,
-                                status = <<?REMOTE_OK:32>>,
-                                serial = <<Serial:32>>}, []} ->
-                    {ok, lists:reverse(Acc)};
-                % XXX A stream indicates finish by setting the status to
-                % XXX REMOTE_OK. For screenshots, an empty body is returned with the
-                % XXX status set to 'continue'.
-                {#remote_message_header{
-                                type = <<?REMOTE_STREAM:32>>,
-                                status = <<?REMOTE_CONTINUE:32>>,
-                                serial = <<Serial:32>>}, <<>>} ->
-                    {ok, lists:reverse(Acc)};
-                {#remote_message_header{
-                                type = <<?REMOTE_STREAM:32>>,
-                                status = <<?REMOTE_CONTINUE:32>>,
-                                serial = <<Serial:32>>}, Payload} ->
-                    recvall(FD, Serial, Timeout, [Payload|Acc]);
-                Any ->
-                    error_logger:info_report([{got, Any}])
-            end;
-        {error, eagain} ->
+    #state{serial = Serial} = getstate(Ref),
+    recvall(Ref, Serial, Timeout, []).
+recvall(Ref, Serial, Timeout, Acc) ->
+    receive
+        {verx, Ref, {#remote_message_header{
+                            type = <<?REMOTE_STREAM:32>>,
+                            status = <<?REMOTE_OK:32>>,
+                            serial = <<Serial:32>>}, []}} ->
             {ok, lists:reverse(Acc)};
-        Error ->
-            Error
+        % XXX A stream indicates finish by setting the status to
+        % XXX REMOTE_OK. For screenshots, an empty body is returned with the
+        % XXX status set to 'continue'.
+        {verx, Ref, {#remote_message_header{
+                            type = <<?REMOTE_STREAM:32>>,
+                            status = <<?REMOTE_CONTINUE:32>>,
+                            serial = <<Serial:32>>}, <<>>}} ->
+            {ok, lists:reverse(Acc)};
+        {verx, Ref, {#remote_message_header{
+                            type = <<?REMOTE_STREAM:32>>,
+                            status = <<?REMOTE_CONTINUE:32>>,
+                            serial = <<Serial:32>>}, Payload}} ->
+            recvall(Ref, Serial, Timeout, [Payload|Acc])
+    after
+        0 ->
+            case read(Ref, Timeout) of
+                ok ->
+                    recvall(Ref, Serial, Timeout, Acc);
+                {error, eagain} ->
+                    {ok, lists:reverse(Acc)};
+                {error, _} = Error ->
+                    Error
+            end
     end.
 
 send(Ref, Buf) when is_list(Buf) ->
@@ -239,7 +242,8 @@ init([Opt]) ->
 
 
 handle_call({call, Proc, _Message}, _From, #state{serial = Serial} = State) ->
-    {reply, ok, State#state{proc = Proc, serial = Serial+1}};
+    Serial1 = Serial + 1,
+    {reply, {ok, Serial1}, State#state{proc = Proc, serial = Serial1}};
 
 handle_call(getfd, _From, #state{s = Socket} = State) ->
     {reply, Socket, State};
