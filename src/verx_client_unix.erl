@@ -36,6 +36,9 @@
 
 -export([
     call/2, call/3,
+    cast/2, cast/3, cast/4,
+
+    reply/2, reply/3,
 
     recv/1, recv/2,
     recvall/1, recvall/2,
@@ -65,61 +68,69 @@
 call(Ref, Proc) ->
     call(Ref, Proc, []).
 call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
-    ok = gen_server:call(Ref, {call, Proc, Arg}),
+    {ok, Serial} = cast(Ref, Proc, Arg),
+    reply(Ref, Serial).
 
+cast(Ref, Proc) ->
+    cast(Ref, Proc, [], infinity).
+cast(Ref, Proc, Arg) ->
+    cast(Ref, Proc, Arg, infinity).
+cast(Ref, Proc, Arg, Timeout) ->
+    ok = gen_server:call(Ref, {call, Proc, Arg}, Timeout),
     #state{s = Socket, serial = Serial} = getstate(Ref),
-
     {Header, Call} = verx_rpc:call(Proc, Arg),
-
     Message = verx_rpc:encode({Header#remote_message_header{serial = <<Serial:32>>}, Call}),
     Len = ?REMOTE_MESSAGE_HEADER_XDR_LEN + byte_size(Message),
-
-    ok = procket:write(Socket, [<<?UINT32(Len)>>, Message]),
-
-    call_1(Socket, Serial).
-
-call_1(Socket, Serial) ->
-    case read_packet(Socket) of
-        {ok, Buf} ->
-            Reply = verx_rpc:decode(Buf),
-            case Reply of
-                {#remote_message_header{serial = <<Serial:32>>}, _} ->
-                    verx_rpc:status(Reply);
-                {#remote_message_header{serial = <<RSerial:32>>}, _} ->
-                    % message with old/out of order serial number
-                    error_logger:error_report([
-                            {out_of_sync, RSerial, Serial, Reply}
-                            ]),
-                    call_1(Socket, Serial)
-            end;
-        Error ->
+    case procket:write(Socket, [<<?UINT32(Len)>>, Message]) of
+        ok ->
+            {ok, Serial};
+        {error, _} = Error ->
             Error
+    end.
+
+reply(Ref, Serial) ->
+    reply(Ref, Serial, infinity).
+reply(Ref, Serial, infinity) ->
+    reply(Ref, Serial, 60 * 60 * 1000); % XXX
+reply(Ref, Serial, Timeout) ->
+    receive
+        {verx, Ref, {#remote_message_header{serial = <<Serial:32>>, type = <<?REMOTE_REPLY:32>>}, _} = Reply} ->
+            verx_rpc:status(Reply)
+    after
+        0 ->
+            case read(Ref, Timeout) of
+                ok ->
+                    reply(Ref, Serial, Timeout);
+                {error, _} = Error ->
+                    Error
+            end
     end.
 
 recv(Ref) ->
     recv(Ref, 5000).
 recv(Ref, Timeout) ->
-    #state{s = FD, serial = Serial} = getstate(Ref),
-    recv(FD, Serial, Timeout, []).
-recv(FD, Serial, Timeout, Acc) ->
-    case read_packet(FD, Timeout) of
-        {ok, Bin} ->
-            case verx_rpc:decode(Bin) of
-                {#remote_message_header{
-                                type = <<?REMOTE_STREAM:32>>,
-                                status = <<?REMOTE_OK:32>>,
-                                serial = <<Serial:32>>}, []} ->
-                    {ok, lists:reverse(Acc)};
-                {#remote_message_header{
-                                type = <<?REMOTE_STREAM:32>>,
-                                status = <<?REMOTE_CONTINUE:32>>,
-                                serial = <<Serial:32>>}, Payload} ->
-                    recv(FD, Serial, Timeout, [Payload|Acc]);
-                Any ->
-                    error_logger:info_report([{got, Any}])
-            end;
-        Error ->
-            Error
+    #state{serial = Serial} = getstate(Ref),
+    recv(Ref, Serial, Timeout, []).
+recv(Ref, Serial, Timeout, Acc) ->
+    receive
+        {verx, Ref, {#remote_message_header{
+                            serial = <<Serial:32>>,
+                            type = <<?REMOTE_STREAM:32>>,
+                            status = <<?REMOTE_OK:32>>}, []}} ->
+            {ok, lists:reverse(Acc)};
+        {verx, Ref, {#remote_message_header{
+                            serial = <<Serial:32>>,
+                            type = <<?REMOTE_STREAM:32>>,
+                            status = <<?REMOTE_CONTINUE:32>>}, Payload}} ->
+            recv(Ref, Serial, Timeout, [Payload|Acc])
+    after
+        0 ->
+            case read(Ref, Timeout) of
+                ok ->
+                    recv(Ref, Serial, Timeout, Acc);
+                {error, _} = Error ->
+                    Error
+            end
     end.
 
 recvall(Ref) ->
@@ -257,6 +268,17 @@ code_change(_OldVsn, State, _Extra) ->
 %%-------------------------------------------------------------------------
 %%% Utility functions
 %%-------------------------------------------------------------------------
+read(Ref, Timeout) ->
+    #state{s = Socket} = getstate(Ref),
+    case read_packet(Socket, Timeout) of
+        {ok, Buf} ->
+            Reply = verx_rpc:decode(Buf),
+            self() ! {verx, Ref, Reply},
+            ok;
+        {error, _} = Error ->
+            Error
+    end.
+
 read_packet(Socket) ->
     read_packet(Socket, 5000).
 read_packet(Socket, Timeout) when is_integer(Socket) ->

@@ -157,6 +157,7 @@ call(_) ->
         "screenshot",
         "send",
         "send-key",
+        "shutdown",
         "undefine"
     ],
     rp(Help),
