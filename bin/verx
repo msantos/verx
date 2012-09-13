@@ -144,6 +144,45 @@ call(["undefine", Name | Arg]) ->
     {ok, [Domain]} = lookup(Ref, {domain, Name}),
     rp(verx:domain_undefine(Ref, [Domain]));
 
+call(["pool-list" | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+
+    {ok, [Num]} = verx:num_of_storage_pools(Ref),
+    {ok, [Res]} = verx:list_storage_pools(Ref, [Num]),
+
+    rp({ok, [ begin
+        {ok, [N]} = lookup(Ref, {pool, R}),
+        {ok, [Active]} = verx:storage_pool_is_active(Ref, [N]),
+        {ok, [Autostart]} = verx:storage_pool_get_autostart(Ref, [N]),
+        {R, [{state, bool(Active)}, {autostart, bool(Autostart)}]}
+    end || R <- Res ]});
+
+call(["vol-list", Name | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+
+    {ok, [X]} = lookup(Ref, {pool, Name}),
+    {ok, [Num]} = verx:storage_pool_num_of_volumes(Ref, [X]),
+    {ok, [Res]} = verx:storage_pool_list_volumes(Ref, [X, Num]),
+
+    rp({ok, [ begin
+            {ok, [N]} = verx:storage_vol_lookup_by_name(Ref, [X, R]),
+            {ok, [Path]} = verx:storage_vol_get_path(Ref, [N]),
+            {R, [{path, Path}]}
+        end || R <- Res ]});
+
+call(["vol-download", Name, File | Arg]) ->
+    Opt = getopt(Arg),
+    Offset = list_to_integer(proplists:get_value("offset", Opt, "0")),
+    Length = list_to_integer(proplists:get_value("length", Opt, "0")),
+    Flags = list_to_integer(proplists:get_value("flags", Opt, "0")),
+    {ok, Ref} = connect(Opt),
+    {ok, [X]} = lookup(Ref, {vol, Name}),
+    ok = verx:storage_vol_download(Ref, [X, Offset, Length, Flags]),
+    download(Ref, File),
+    rp(ok);
+
 call(_) ->
     Help = [
         "capabilities",
@@ -159,6 +198,10 @@ call(_) ->
         "send-key",
         "shutdown",
         "undefine"
+
+        "pool-list",
+        "vol-list",
+        "vol-download"
     ],
     rp(Help),
     halt(1).
@@ -227,9 +270,19 @@ domains(Ref, Domains) ->
       end || N <- Domains ].
 
 lookup(Ref, {domain, Name}) ->
-    Fun = [ fun() -> verx:domain_lookup_by_id(Ref, [list_to_integer(Name)]) end,
-            fun() -> verx:domain_lookup_by_name(Ref, [list_to_binary(Name)]) end,
+    Fun = [ fun() -> verx:domain_lookup_by_id(Ref, [maybe_integer(Name)]) end,
+            fun() -> verx:domain_lookup_by_name(Ref, [maybe_binary(Name)]) end,
             fun() -> verx:domain_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end ],
+    lookup_1(Fun);
+
+lookup(Ref, {pool, Name}) ->
+    Fun = [ fun() -> verx:storage_pool_lookup_by_name(Ref, [maybe_binary(Name)]) end,
+            fun() -> verx:storage_pool_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end ],
+    lookup_1(Fun);
+
+lookup(Ref, {vol, Name}) ->
+    Fun = [ fun() -> verx:storage_vol_lookup_by_key(Ref, [maybe_binary(Name)]) end,
+            fun() -> verx:storage_vol_lookup_by_path(Ref, [maybe_binary(Name)]) end ],
     lookup_1(Fun).
 
 lookup_1(Fun)  ->
@@ -250,9 +303,46 @@ lookup_1([Fun|Tail], Acc) ->
 maybe_integer(N) when is_integer(N) -> N;
 maybe_integer(N) when is_list(N) -> list_to_integer(N).
 
+maybe_binary(N) when is_binary(N) -> N;
+maybe_binary(N) when is_list(N) -> list_to_binary(N).
+
+bool(0) -> false;
+bool(1) -> true.
+
 default_port(verx_client_tcp) -> ?LIBVIRT_TCP_PORT;
 default_port(verx_client_tls) -> ?LIBVIRT_TLS_PORT;
 default_port(_) -> 0.
 
 mime_ext(<<"image/x-portable-pixmap">>) -> ".ppm";
 mime_ext(_) -> ".screen".
+
+download(Ref, File) ->
+    {ok, FH} = file:open(File, [write, raw, binary]),
+    download_1(Ref, FH, 0, 0).
+
+download_1(Ref, FH, Col, Total) ->
+    case verx_client:recv(Ref) of
+        % XXX just seems to timeout when done?
+        {error, eagain} ->
+%        ok ->
+            verx_client:finish(Ref),
+            file:close(FH),
+            progress(69, Total),
+            ok;
+        {ok, Bytes} ->
+            Total1 = Total + byte_size(Bytes),
+            progress(Col rem 70, Total1),
+            ok = file:write(FH, Bytes),
+            download_1(Ref, FH, Col+1, Total1)
+    end.
+
+progress(69, Total) when Total > 1024 * 1024 * 1024 ->
+    io:format(" ~p Gb~n", [erlang:trunc((Total / (1024 * 1024 * 1024)) * 100) / 100]);
+progress(69, Total) when Total > 1024 * 1024 ->
+    io:format(" ~p Mb~n", [Total div (1024 * 1024)]);
+progress(69, Total) when Total > 1024 ->
+    io:format(" ~p Kb~n", [Total div 1024]);
+progress(69, Total) when Total ->
+    io:format(" ~p bytes~n", [Total]);
+progress(_, _) ->
+    io:format(".").
