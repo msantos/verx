@@ -41,7 +41,7 @@
     cast/2, cast/3, cast/4,
     reply/2, reply/3,
 
-    recv/1, recv/2,
+    recv/1, recv/2, recv/3,
     recvall/1, recvall/2,
 
     send/2,
@@ -58,7 +58,7 @@
         pid,
         s,                  % socket
         proc,               % last called procedure
-        serial = 0,         % serial number
+        serial = -1,        % serial number
         buf = #verx_buf{}
         }).
 
@@ -97,17 +97,20 @@ reply(Ref, Serial, Timeout) ->
 recv(Ref) ->
     recv(Ref, 5000).
 recv(Ref, Timeout) ->
-    recv(Ref, Timeout, []).
-recv(Ref, Timeout, Acc) ->
+    #state{serial = Serial} = getstate(Ref),
+    recv(Ref, Serial, Timeout).
+recv(Ref, Serial, Timeout) ->
     receive
         {verx, Ref, {#remote_message_header{
+                            serial = <<Serial:32>>,
                             type = <<?REMOTE_STREAM:32>>,
                             status = <<?REMOTE_OK:32>>}, []}} ->
-            {ok, lists:reverse(Acc)};
+            ok;
         {verx, Ref, {#remote_message_header{
-                        type = <<?REMOTE_STREAM:32>>,
-                        status = <<?REMOTE_CONTINUE:32>>}, Payload}} ->
-            recv(Ref, Timeout, [Payload|Acc])
+                            serial = <<Serial:32>>,
+                            type = <<?REMOTE_STREAM:32>>,
+                            status = <<?REMOTE_CONTINUE:32>>}, Payload}} ->
+            {ok, Payload}
     after
         Timeout ->
             {error, eagain}
@@ -196,9 +199,10 @@ init([Pid, Opt]) ->
 
 handle_call({call, Proc, Arg}, _From, #state{
                 s = Socket,
-                serial = Serial
+                serial = Serial0
                 } = State) when is_list(Arg) ->
     {Header, Call} = verx_rpc:call(Proc, Arg),
+    Serial = Serial0 + 1,
     Message = verx_rpc:encode({Header#remote_message_header{
                     serial = <<Serial:32>>
                     }, Call}),
@@ -207,7 +211,7 @@ handle_call({call, Proc, Arg}, _From, #state{
         Error -> Error
     end,
     inet:setopts(Socket, [{active, once}]),
-    {reply, Reply, State#state{proc = Proc, serial = Serial+1}};
+    {reply, Reply, State#state{proc = Proc, serial = Serial}};
 
 handle_call({send, Buf}, _From, #state{
                 s = Socket,
@@ -238,6 +242,9 @@ handle_call(finish, _From, #state{
     Reply = send_rpc(Socket, Header),
     inet:setopts(Socket, [{active, once}]),
     {reply, Reply, State};
+
+handle_call(getstate, _From, State) ->
+    {reply, State, State};
 
 handle_call(stop, _From, State) ->
     {stop, shutdown, ok, State}.
@@ -300,3 +307,6 @@ reply_to_caller(Pid, Data) ->
     Reply = verx_rpc:decode(Data),
     Pid ! {verx, self(), Reply},
     ok.
+
+getstate(Ref) when is_pid(Ref) ->
+    gen_server:call(Ref, getstate).

@@ -40,7 +40,7 @@
 
     reply/2, reply/3,
 
-    recv/1, recv/2,
+    recv/1, recv/2, recv/3,
     recvall/1, recvall/2,
 
     send/2,
@@ -112,24 +112,24 @@ recv(Ref) ->
     recv(Ref, 5000).
 recv(Ref, Timeout) ->
     #state{serial = Serial} = getstate(Ref),
-    recv(Ref, Serial, Timeout, []).
-recv(Ref, Serial, Timeout, Acc) ->
+    recv(Ref, Serial, Timeout).
+recv(Ref, Serial, Timeout) ->
     receive
         {verx, Ref, {#remote_message_header{
                             serial = <<Serial:32>>,
                             type = <<?REMOTE_STREAM:32>>,
                             status = <<?REMOTE_OK:32>>}, []}} ->
-            {ok, lists:reverse(Acc)};
+            ok;
         {verx, Ref, {#remote_message_header{
                             serial = <<Serial:32>>,
                             type = <<?REMOTE_STREAM:32>>,
                             status = <<?REMOTE_CONTINUE:32>>}, Payload}} ->
-            recv(Ref, Serial, Timeout, [Payload|Acc])
+            {ok, Payload}
     after
         0 ->
             case read(Ref, Timeout) of
                 ok ->
-                    recv(Ref, Serial, Timeout, Acc);
+                    recv(Ref, Timeout);
                 {error, _} = Error ->
                     Error
             end
