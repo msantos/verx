@@ -364,6 +364,42 @@ similar to the example in the Ruby libvirt documentation
     result(Call, {error, _Error} = N) ->
         error_logger:error_report([{call, Call}] ++ N).
 
+### SYSTEM CONSOLE
+
+The VM system console can be accessed from any of the transports.
+
+    % Connect to libvirtd using the Unix socket
+    1> {ok, Ref} = verx_client:start().
+    {ok,{verx_client_unix,<0.43.0>}}
+
+    % Open a remote protocol session to the Linux containers hypervisor
+    2> verx:open(Ref, ["lxc:///", 0]).
+    ok
+
+    % Get a domain reference
+    3> {ok, [Domain]} = verx:domain_lookup_by_name(Ref, [<<"lxc-1">>]).
+    {ok,[{<<"lxc-3">>,
+         <<150,162,91,134,54,66,203,130,29,224,244,242,121,45,5,118>>,
+           19586}]}
+
+    % Open the console. The arguments are:
+    %   Domain
+    %   Device name : string() or void (NULL)
+    %   Flags : integer()
+    4> verx:domain_open_console(Ref, [Domain, void, 0]).
+
+    % Send a message to the console, check the results with
+    % flush()
+
+    % Start up Erlang ...
+    5> verx_client:send(Ref, [<<"erl\n">>]).
+
+    6> verx_client:send(Ref, [<<"spawn(fun() -> io:format(\"Erlang process in an Erlang VM in a Linux VM in an Erlang process!\") end).\n">>]).
+
+    % Receive the message back from the console
+    8> verx_client:recv(Ref).
+    {ok,<<"Erlang process in an Erlang VM in a Linux VM in an Erlang process!">>}
+
 ### TAKING A SCREENSHOT
 
 Here is an example of using the libvirt stream interface.
