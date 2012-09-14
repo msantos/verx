@@ -463,8 +463,6 @@ If there are any errors, read through `bin/gen_remote_protocol.escript`.
 
 * generate verx.hrl from virnetprotocol.c
 
-* console: receive is broken (or send if using active mode)
-
 * verx\_client\_tls
     * single byte received before packet (works if thrown away)
 
@@ -472,5 +470,4 @@ If there are any errors, read through `bin/gen_remote_protocol.escript`.
     * gen\_server halts when receiving a tcp\_closed message, causes an
       error if the caller does a verx\_client:close/1
 
-* need to support multiple, active calls?
-    * have a process per serial number with a timeout
+* merge the Unix, TCP and TLS transports
