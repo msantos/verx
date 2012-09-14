@@ -39,11 +39,11 @@
 verx_test_() ->
     {timeout, 120, [
             {?LINE, fun() -> run(kvm, verx_client_unix) end},
-            {?LINE, fun() -> run(kvm, verx_client_tcp) end},
+%            {?LINE, fun() -> run(kvm, verx_client_tcp) end},
             {?LINE, fun() -> run(kvm, verx_client_tls) end},
 
             {?LINE, fun() -> run(lxc, verx_client_unix) end},
-            {?LINE, fun() -> run(lxc, verx_client_tcp) end},
+%            {?LINE, fun() -> run(lxc, verx_client_tcp) end},
             {?LINE, fun() -> run(lxc, verx_client_tls) end}
             ]}.
 
