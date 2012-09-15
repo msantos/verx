@@ -17,16 +17,15 @@ main(Opt) ->
     true = code:add_pathz(filename:dirname(escript:script_name())
         ++ "/../deps/uuid/ebin"),
 
-    % load srly for tcsetattr (optional)
-    code:add_pathz(filename:dirname(escript:script_name())
-        ++ "/../deps/srly/ebin"),
-
     call(Opt).
 
 call(["capabilities" | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
     rp(verx:get_capabilities(Ref));
+
+call(["console", Name | Arg]) ->
+    console(Name, Arg);
 
 call(["ctl-alt-del", Name | Arg]) ->
     call(["send-key", Name, "29 56 111" | Arg]);
@@ -107,6 +106,14 @@ call(["screenshot", Name | Arg]) ->
 
     rp({ok, Mime, File1});
 
+call(["recv", Name | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+    Timeout = list_to_integer(proplists:get_value("timeout", Opt, "5000")),
+    {ok, [Domain]} = lookup(Ref, {domain, Name}),
+    ok = verx:domain_open_console(Ref, [Domain, void, 0]),
+    rp(verx_client:recv(Ref, Timeout));
+
 call(["send", Name | Arg]) ->
     {Opt, Cmd} = getopt(Arg),
     {ok, Ref} = connect(Opt),
@@ -186,6 +193,7 @@ call(["vol-download", Name, File | Arg]) ->
 call(_) ->
     Help = [
         "capabilities",
+        "console",
         "create",
         "ctl-alt-del",
         "define",
@@ -194,10 +202,11 @@ call(_) ->
         "list",
         "list --all",
         "screenshot",
+        "recv",
         "send",
         "send-key",
         "shutdown",
-        "undefine"
+        "undefine",
 
         "pool-list",
         "vol-list",
@@ -333,6 +342,7 @@ download_1(Ref, FH, Col, Total) ->
             Total1 = Total + byte_size(Bytes),
             progress(Col rem 70, Total1),
             ok = file:write(FH, Bytes),
+            erlang:garbage_collect(),
             download_1(Ref, FH, Col+1, Total1)
     end.
 
@@ -346,3 +356,38 @@ progress(69, Total) when Total ->
     io:format(" ~p bytes~n", [Total]);
 progress(_, _) ->
     io:format(".").
+
+console(Name, Arg) ->
+    Opt = getopt(Arg),
+    Pid = spawn_link(fun() -> console_recv(Name, Opt) end),
+    ok = io:setopts(standard_io, [binary]),
+    tty_read(Pid).
+
+tty_read(Pid) ->
+    Buf = io:get_line(""),
+    Pid ! {tty_read, Buf},
+    tty_read(Pid).
+
+console_recv(Name, Opt) ->
+    {ok, Ref} = connect(Opt),
+    Devname = proplists:get_value("devname", Opt, void),
+    Flags = list_to_integer(proplists:get_value("flags", Opt, "0")),
+    {ok, [D]} = lookup(Ref, {domain, Name}),
+    ok = verx:domain_open_console(Ref, [D, Devname, Flags]),
+    console_read(Ref).
+
+console_read({_,Pid} = Ref) ->
+    receive
+        {verx, Pid, {#remote_message_header{
+            type = <<?REMOTE_STREAM:32>>,
+            status = <<?REMOTE_OK:32>>}, []}} ->
+            ok;
+        {verx, Pid, {#remote_message_header{
+            type = <<?REMOTE_STREAM:32>>,
+            status = <<?REMOTE_CONTINUE:32>>}, Buf}} ->
+            io:format("~s", [Buf]),
+            console_read(Ref);
+        {tty_read, Buf} ->
+            verx_client:send(Ref, [Buf]),
+            console_read(Ref)
+    end.

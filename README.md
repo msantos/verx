@@ -1,4 +1,4 @@
-(almost) pure Erlang implementation of the libvirtd remote protocol.
+Erlang implementation of the libvirtd remote protocol.
 
 For an Erlang binding to the C libvirt interface, see:
 
