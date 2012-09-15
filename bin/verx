@@ -88,12 +88,13 @@ call(["screenshot", Name | Arg]) ->
     Screen = proplists:get_value("screen", Opt, 0),
     Flags = proplists:get_value("flags", Opt, 0),
     File = proplists:get_value("file", Opt),
+    Timeout = list_to_integer(proplists:get_value("timeout", Opt, "5000")),
     {ok, Ref} = connect(Opt),
 
     {ok, [Domain]} = lookup(Ref, {domain, Name}),
 
     {ok, [Mime]} = verx:domain_screenshot(Ref, [Domain, Screen, Flags]),
-    {ok, Buf} = verx_client:recvall(Ref),
+    {ok, Buf} = verx_client:recvall(Ref, Timeout),
 
     File1 = case File of
         undefined ->
@@ -184,10 +185,11 @@ call(["vol-download", Name, File | Arg]) ->
     Offset = list_to_integer(proplists:get_value("offset", Opt, "0")),
     Length = list_to_integer(proplists:get_value("length", Opt, "0")),
     Flags = list_to_integer(proplists:get_value("flags", Opt, "0")),
+    Timeout = list_to_integer(proplists:get_value("timeout", Opt, "5000")),
     {ok, Ref} = connect(Opt),
     {ok, [X]} = lookup(Ref, {vol, Name}),
     ok = verx:storage_vol_download(Ref, [X, Offset, Length, Flags]),
-    download(Ref, File),
+    download(Ref, File, Timeout),
     rp(ok);
 
 call(_) ->
@@ -325,12 +327,12 @@ default_port(_) -> 0.
 mime_ext(<<"image/x-portable-pixmap">>) -> ".ppm";
 mime_ext(_) -> ".screen".
 
-download(Ref, File) ->
+download(Ref, File, Timeout) ->
     {ok, FH} = file:open(File, [write, raw, binary]),
-    download_1(Ref, FH, 0, 0).
+    download_1(Ref, FH, Timeout, 0, 0).
 
-download_1(Ref, FH, Col, Total) ->
-    case verx_client:recv(Ref) of
+download_1(Ref, FH, Timeout, Col, Total) ->
+    case verx_client:recv(Ref, Timeout) of
         % XXX just seems to timeout when done?
         {error, eagain} ->
 %        ok ->
@@ -343,7 +345,7 @@ download_1(Ref, FH, Col, Total) ->
             progress(Col rem 70, Total1),
             ok = file:write(FH, Bytes),
             erlang:garbage_collect(),
-            download_1(Ref, FH, Col+1, Total1)
+            download_1(Ref, FH, Timeout, Col+1, Total1)
     end.
 
 progress(69, Total) when Total > 1024 * 1024 * 1024 ->
