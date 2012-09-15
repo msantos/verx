@@ -29,6 +29,8 @@
 %% ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 %% POSSIBILITY OF SUCH DAMAGE.
 -module(verx_client).
+
+-include_lib("kernel/include/inet.hrl").
 -include("verx.hrl").
 -include("verx_client.hrl").
 
@@ -47,7 +49,11 @@
 
     getserial/1
     ]).
--export([stream/2]).
+-export([
+    stream/2,
+    resolv/1, resolv/2,
+    reply_to_caller/2
+    ]).
 
 
 %%-------------------------------------------------------------------------
@@ -226,3 +232,20 @@ stream(Data, #verx_buf{
             buflen = BufLen + iolist_size(Data),
             buf = [Data|Buf]
             }}.
+
+resolv(Host) ->
+    resolv(Host, inet6).
+resolv(Host, Family) ->
+    case inet:gethostbyname(Host, Family) of
+        {error, nxdomain} ->
+            resolv(Host, inet);
+        {ok, #hostent{h_addr_list = [IPaddr|_IPaddrs]}} ->
+            {IPaddr, Family};
+        Error ->
+            Error
+    end.
+
+reply_to_caller(Pid, Data) ->
+    Reply = verx_rpc:decode(Data),
+    Pid ! {verx, self(), Reply},
+    ok.

@@ -31,7 +31,6 @@
 -module(verx_client_tcp).
 -behaviour(gen_server).
 
--include_lib("kernel/include/inet.hrl").
 -include("verx.hrl").
 -include("verx_client.hrl").
 
@@ -55,7 +54,7 @@ init([Pid, Opt]) ->
     Host = proplists:get_value(host, Opt, "127.0.0.1"),
     Port = proplists:get_value(port, Opt, ?LIBVIRT_TCP_PORT),
 
-    {IP, Family} = resolv(Host),
+    {IP, Family} = verx_client:resolv(Host),
 
     % Connect to the libvirt socket
     {ok, Socket} = gen_tcp:connect(IP, Port, [
@@ -136,7 +135,7 @@ handle_info({tcp, Socket, Data},
                    buf = Buf} = State) ->
     inet:setopts(Socket, [{active, once}]),
     {Msgs, Rest} = verx_client:stream(Data, Buf),
-    [ reply_to_caller(Pid, Msg) || Msg <- Msgs ],
+    [ verx_client:reply_to_caller(Pid, Msg) || Msg <- Msgs ],
     {noreply, State#state{buf = Rest}};
 
 handle_info({tcp_closed, Socket}, #state{s = Socket} = State) ->
@@ -152,27 +151,9 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-
 %%-------------------------------------------------------------------------
 %%% Internal functions
 %%-------------------------------------------------------------------------
-resolv(Host) ->
-    resolv(Host, inet6).
-resolv(Host, Family) ->
-    case inet:gethostbyname(Host, Family) of
-        {error, nxdomain} ->
-            resolv(Host, inet);
-        {ok, #hostent{h_addr_list = [IPaddr|_IPaddrs]}} ->
-            {IPaddr, Family};
-        Error ->
-            Error
-    end.
-
 send_rpc(Socket, Buf) ->
     Len = ?REMOTE_MESSAGE_HEADER_XDR_LEN + byte_size(Buf),
     gen_tcp:send(Socket, <<?UINT32(Len), Buf/binary>>).
-
-reply_to_caller(Pid, Data) ->
-    Reply = verx_rpc:decode(Data),
-    Pid ! {verx, self(), Reply},
-    ok.

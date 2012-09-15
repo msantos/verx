@@ -31,7 +31,6 @@
 -module(verx_client_tls).
 -behaviour(gen_server).
 
--include_lib("kernel/include/inet.hrl").
 -include("verx.hrl").
 -include("verx_client.hrl").
 
@@ -63,7 +62,7 @@ init([Pid, Opt]) ->
     Password = proplists:get_value(password, Opt, ""),
     Ciphers = proplists:get_value(ciphers, Opt, ssl:cipher_suites()),
 
-    {IP, Family} = resolv(Host),
+    {IP, Family} = verx_client:resolv(Host),
 
     % Connect to the libvirt TLS port
     {ok, Socket} = ssl:connect(IP, Port, [
@@ -141,20 +140,6 @@ handle_call(stop, _From, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info({ssl, Socket, <<?UINT32(Len), Data/binary>>},
-            #state{s = Socket,
-                   pid = Pid,
-                   buf = {0, []}} = State)
-        when Len =:= byte_size(Data) + ?REMOTE_MESSAGE_HEADER_XDR_LEN ->
-    ssl:setopts(Socket, [{active, once}]),
-    reply_to_caller(Pid, Data),
-    {noreply, State};
-
-handle_info({ssl, Socket, <<?UINT32(Len), Data/binary>>},
-            #state{s = Socket, buf = {0, []}} = State) ->
-    ssl:setopts(Socket, [{active, once}]),
-    {noreply, State#state{buf = {Len, [Data]}}};
-
 % XXX FIXME 1 byte (<<1>>) is received at the beginning of the packet
 % XXX FIXME
 % XXX FIXME Thought it was because of this:
@@ -179,7 +164,7 @@ handle_info({ssl, Socket, Data},
                    buf = Buf} = State) ->
     ssl:setopts(Socket, [{active, once}]),
     {Msgs, Rest} = verx_client:stream(Data, Buf),
-    [ reply_to_caller(Pid, Msg) || Msg <- Msgs ],
+    [ verx_client:reply_to_caller(Pid, Msg) || Msg <- Msgs ],
     {noreply, State#state{buf = Rest}};
 
 handle_info({ssl_closed, Socket}, #state{s = Socket} = State) ->
@@ -195,27 +180,9 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-
 %%-------------------------------------------------------------------------
 %%% Internal functions
 %%-------------------------------------------------------------------------
-resolv(Host) ->
-    resolv(Host, inet6).
-resolv(Host, Family) ->
-    case inet:gethostbyname(Host, Family) of
-        {error, nxdomain} ->
-            resolv(Host, inet);
-        {ok, #hostent{h_addr_list = [IPaddr|_IPaddrs]}} ->
-            {IPaddr, Family};
-        Error ->
-            Error
-    end.
-
 send_rpc(Socket, Buf) ->
     Len = ?REMOTE_MESSAGE_HEADER_XDR_LEN + byte_size(Buf),
     ssl:send(Socket, <<?UINT32(Len), Buf/binary>>).
-
-reply_to_caller(Pid, Data) ->
-    Reply = verx_rpc:decode(Data),
-    Pid ! {verx, self(), Reply},
-    ok.

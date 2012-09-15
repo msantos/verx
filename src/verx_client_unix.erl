@@ -140,7 +140,7 @@ handle_info({Port, {data, Data}},
                    pid = Pid,
                    buf = Buf} = State) ->
     {Msgs, Rest} = verx_client:stream(Data, Buf),
-    [ reply_to_caller(Pid, Msg) || Msg <- Msgs ],
+    [ verx_client:reply_to_caller(Pid, Msg) || Msg <- Msgs ],
     {noreply, State#state{buf = Rest}};
 
 handle_info({'EXIT', Port, Reason}, #state{port = Port} = State) ->
@@ -157,7 +157,6 @@ terminate(_Reason, #state{s = Socket, port = Port}) ->
     ok.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-
 
 %%-------------------------------------------------------------------------
 %%% Internal functions
@@ -176,8 +175,3 @@ send_rpc(Port, Buf) ->
             error:Error ->
                 {error, Error}
         end.
-
-reply_to_caller(Pid, Data) ->
-    Reply = verx_rpc:decode(Data),
-    Pid ! {verx, self(), Reply},
-    ok.
