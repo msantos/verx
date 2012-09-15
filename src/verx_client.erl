@@ -93,6 +93,8 @@ cast(Ref, Proc, Arg, Timeout)
         when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
     gen_server:call(Ref, {call, Proc, Arg}, Timeout).
 
+send(Ref, Buf) when is_binary(Buf) ->
+    send(Ref, [Buf]);
 send(_Ref, []) ->
     ok;
 send(Ref, [Buf|Rest]) when is_binary(Buf) ->

@@ -4,7 +4,7 @@
 %%% Command line interface using the libvirt remote protocol
 %%%
 -include_lib("kernel/include/file.hrl").
--include("$PWD/include/verx.hrl").
+-include_lib("verx/include/verx.hrl").
 
 main(Opt) ->
     % load verx
@@ -390,6 +390,6 @@ console_read(Ref) ->
             io:format("~s", [Buf]),
             console_read(Ref);
         {tty_read, Buf} ->
-            verx_client:send(Ref, [Buf]),
+            verx_client:send(Ref, Buf),
             console_read(Ref)
     end.

@@ -53,6 +53,32 @@ environment variables before running the script:
     VERX_QEMU_BIN : path to the qemu binary (default: /usr/bin/kvm)
     VERX_BRIDGE_INTERFACE : bridge interface (default: user networking)
 
+## TESTING EVERYTHING WORKS
+
+To quickly test everything works, you can try running `bin/verx`, an
+escript that provides a simple command line interface to the verx library.
+
+You'll have to set up the ERL\_LIBS environment variable first, e.g.,
+if verx is checked out in ~/src:
+
+    export ERL_LIBS=$ERL_LIBS:~/src
+
+Then run:
+
+    bin/verx
+
+To create the example VM:
+
+    bin/verx create priv/example.xml
+
+To see all the VMs (if you have TLS set up):
+
+    bin/verx list --all --transport verx_client_tls
+
+To connect to example VM's console using the Unix transport:
+
+    bin/verx console localvm # control-C to exit
+
 ## HOW TO USE IT
 
 ## libvirt documentation

@@ -28,8 +28,7 @@
 %% LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 %% ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 %% POSSIBILITY OF SUCH DAMAGE.
-%-include("include/remote_protocol.hrl").
--include("$PWD/include/remote_protocol.hrl").
+-include_lib("verx/include/remote_protocol.hrl").
 
 -define(LIBVIRT_SOCK_PATH, <<"/var/run/libvirt/libvirt-sock">>).
 -define(LIBVIRT_TCP_PORT, 16509).
