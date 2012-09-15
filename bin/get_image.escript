@@ -14,12 +14,22 @@ main(_) ->
     ssl:start(),
 
     URI = "http://downloads.openwrt.org/backfire/10.03.1/x86_generic/openwrt-x86-generic-combined-ext2.img.gz",
-    File = "priv/" ++ filename:rootname(filename:basename(URI)),
+    File = "priv/" ++ filename:basename(URI),
+    Image = filename:rootname(File),
 
     Cfg = "priv/example.xml",
 
     download(URI, File),
-    config(Cfg, File).
+
+    case file:read_file_info(Image) of
+        {ok, _} ->
+            ok;
+        {error, enoent} ->
+            io:format("Uncompressing image: ~p~n", [File]),
+            os:cmd("gunzip -dc " ++ File ++ " > " ++ Image)
+    end,
+
+    config(Cfg, Image).
 
 download(URI, File) ->
     io:format("Checking download test image ...~n"),
@@ -28,8 +38,7 @@ download(URI, File) ->
             ok;
         {error, enoent} ->
             io:format("Downloading image: ~p -> ~p~n", [URI, File]),
-            {ok, _} = httpc:request(get, {URI, []}, [], [{stream, File}]),
-            os:cmd("gunzip " ++ File ++ ".gz")
+            {ok, _} = httpc:request(get, {URI, []}, [], [{stream, File}])
     end.
 
 config(Cfg, File) ->
