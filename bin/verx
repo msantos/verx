@@ -378,13 +378,13 @@ console_recv(Name, Opt) ->
     ok = verx:domain_open_console(Ref, [D, Devname, Flags]),
     console_read(Ref).
 
-console_read({_,Pid} = Ref) ->
+console_read(Ref) ->
     receive
-        {verx, Pid, {#remote_message_header{
+        {verx, Ref, {#remote_message_header{
             type = <<?REMOTE_STREAM:32>>,
             status = <<?REMOTE_OK:32>>}, []}} ->
             ok;
-        {verx, Pid, {#remote_message_header{
+        {verx, Ref, {#remote_message_header{
             type = <<?REMOTE_STREAM:32>>,
             status = <<?REMOTE_CONTINUE:32>>}, Buf}} ->
             io:format("~s", [Buf]),

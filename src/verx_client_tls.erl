@@ -35,22 +35,6 @@
 -include("verx.hrl").
 -include("verx_client.hrl").
 
--export([
-    call/2, call/3,
-
-    cast/2, cast/3, cast/4,
-    reply/2, reply/3,
-
-    recv/1, recv/2, recv/3,
-    recvall/1, recvall/2,
-
-    send/2,
-    finish/1,
-
-    getserial/1
-    ]).
--export([start_link/0, start_link/1]).
--export([start/0, start/1, stop/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
         terminate/2, code_change/3]).
 
@@ -61,114 +45,6 @@
         serial = -1,    % serial number
         buf = #verx_buf{}
         }).
-
-
-%%-------------------------------------------------------------------------
-%%% API
-%%-------------------------------------------------------------------------
-call(Ref, Proc) ->
-    call(Ref, Proc, []).
-call(Ref, Proc, Arg) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
-    case cast(Ref, Proc, Arg, infinity) of
-        {ok, Serial} -> reply(Ref, Serial);
-        Error -> Error
-    end.
-
-cast(Ref, Proc) ->
-    cast(Ref, Proc, [], infinity).
-cast(Ref, Proc, Arg) ->
-    cast(Ref, Proc, Arg, infinity).
-cast(Ref, Proc, Arg, Timeout) ->
-    gen_server:call(Ref, {call, Proc, Arg}, Timeout).
-
-reply(Ref, Serial) ->
-    reply(Ref, Serial, infinity).
-reply(Ref, Serial, Timeout) ->
-    receive
-        {verx, Ref, {#remote_message_header{
-                            serial = <<Serial:32>>,
-                            type = <<?REMOTE_REPLY:32>>}, _} = Reply} ->
-            verx_rpc:status(Reply)
-    after
-        Timeout ->
-            {error, eagain}
-    end.
-
-recv(Ref) ->
-    recv(Ref, 5000).
-recv(Ref, Timeout) ->
-    #state{serial = Serial} = getstate(Ref),
-    recv(Ref, Serial, Timeout).
-recv(Ref, Serial, Timeout) ->
-    receive
-        {verx, Ref, {#remote_message_header{
-                            serial = <<Serial:32>>,
-                            type = <<?REMOTE_STREAM:32>>,
-                            status = <<?REMOTE_OK:32>>}, []}} ->
-            ok;
-        {verx, Ref, {#remote_message_header{
-                            serial = <<Serial:32>>,
-                            type = <<?REMOTE_STREAM:32>>,
-                            status = <<?REMOTE_CONTINUE:32>>}, Payload}} ->
-            {ok, Payload}
-    after
-        Timeout ->
-            {error, eagain}
-    end.
-
-recvall(Ref) ->
-    recvall(Ref, 2000).
-recvall(Ref, Timeout) ->
-    recvall(Ref, Timeout, []).
-recvall(Ref, Timeout, Acc) ->
-    receive
-        {verx, Ref, {#remote_message_header{
-                            type = <<?REMOTE_STREAM:32>>,
-                            status = <<?REMOTE_OK:32>>}, []}} ->
-            {ok, lists:reverse(Acc)};
-        % XXX A stream indicates finish by setting the status to
-        % XXX REMOTE_OK. For screenshots, an empty body is returned with the
-        % XXX status set to 'continue'.
-        {verx, Ref, {#remote_message_header{
-                        type = <<?REMOTE_STREAM:32>>,
-                        status = <<?REMOTE_CONTINUE:32>>}, <<>>}} ->
-            {ok, lists:reverse(Acc)};
-        {verx, Ref, {#remote_message_header{
-                        type = <<?REMOTE_STREAM:32>>,
-                        status = <<?REMOTE_CONTINUE:32>>}, Payload}} ->
-            recvall(Ref, Timeout, [Payload|Acc])
-    after
-        Timeout ->
-            {ok, lists:reverse(Acc)}
-    end.
-
-send(_Ref, []) ->
-    ok;
-send(Ref, [Buf|Rest]) when is_binary(Buf) ->
-    ok = gen_server:call(Ref, {send, Buf}, infinity),
-    send(Ref, Rest).
-
-finish(Ref) when is_pid(Ref) ->
-    gen_server:call(Ref, finish, infinity).
-
-getserial(Ref) when is_pid(Ref) ->
-    #state{serial = Serial} = gen_server:call(Ref, getstate),
-    Serial.
-
-start() ->
-    start([]).
-start(Opt) when is_list(Opt) ->
-    Self = self(),
-    gen_server:start(?MODULE, [Self, Opt], []).
-
-start_link() ->
-    start_link([]).
-start_link(Opt) when is_list(Opt) ->
-    Self = self(),
-    gen_server:start_link(?MODULE, [Self, Opt], []).
-
-stop(Ref) when is_pid(Ref) ->
-    gen_server:call(Ref, stop).
 
 
 %%-------------------------------------------------------------------------
@@ -256,8 +132,8 @@ handle_call(finish, _From, #state{
     ssl:setopts(Socket, [{active, once}]),
     {reply, Reply, State};
 
-handle_call(getstate, _From, State) ->
-    {reply, State, State};
+handle_call(getserial, _From, #state{serial = Serial} = State) ->
+    {reply, Serial, State};
 
 handle_call(stop, _From, State) ->
     {stop, shutdown, ok, State}.
@@ -321,11 +197,6 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 %%-------------------------------------------------------------------------
-%%% Utility functions
-%%-------------------------------------------------------------------------
-
-
-%%-------------------------------------------------------------------------
 %%% Internal functions
 %%-------------------------------------------------------------------------
 resolv(Host) ->
@@ -348,6 +219,3 @@ reply_to_caller(Pid, Data) ->
     Reply = verx_rpc:decode(Data),
     Pid ! {verx, self(), Reply},
     ok.
-
-getstate(Ref) when is_pid(Ref) ->
-    gen_server:call(Ref, getstate).

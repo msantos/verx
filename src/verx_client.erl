@@ -37,6 +37,9 @@
 -export([
     call/2, call/3,
 
+    cast/2, cast/3, cast/4,
+    reply/2, reply/3,
+
     send/2,
     recv/1, recv/2,
     recvall/1, recvall/2,
@@ -50,54 +53,113 @@
 %%-------------------------------------------------------------------------
 %%% API
 %%-------------------------------------------------------------------------
-call({Module, Ref}, Proc) ->
-    Module:call(Ref, Proc).
-call({Module, Ref}, Proc, Arg) ->
-    Module:call(Ref, Proc, Arg).
-
 start() ->
     start([]).
-
 start(Arg) ->
     Transport = proplists:get_value(transport, Arg, verx_client_unix),
-    case Transport:start(Arg) of
-        {ok, Ref} -> {ok, {Transport, Ref}};
-        Error -> Error
-    end.
+    Self = self(),
+    gen_server:start(Transport, [Self, Arg], []).
 
 start_link() ->
     start_link([]).
-
 start_link(Arg) ->
     Transport = proplists:get_value(transport, Arg, verx_client_unix),
-    case Transport:start_link(Arg) of
-        {ok, Ref} -> {ok, {Transport, Ref}};
+    Self = self(),
+    gen_server:start_link(Transport, [Self, Arg], []).
+
+stop(Ref) when is_pid(Ref) ->
+    gen_server:call(Ref, stop).
+
+
+call(Ref, Proc) ->
+    call(Ref, Proc, []).
+call(Ref, Proc, Arg) ->
+    case cast(Ref, Proc, Arg, infinity) of
+        {ok, Serial} -> reply(Ref, Serial);
         Error -> Error
     end.
 
-stop({Module, Ref}) ->
-    Module:stop(Ref).
+cast(Ref, Proc) ->
+    cast(Ref, Proc, [], infinity).
+cast(Ref, Proc, Arg) ->
+    cast(Ref, Proc, Arg, infinity).
+cast(Ref, Proc, Arg, Timeout)
+        when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
+    gen_server:call(Ref, {call, Proc, Arg}, Timeout).
 
-send({Module, Ref}, Buf) ->
-    Module:send(Ref, Buf).
+send(_Ref, []) ->
+    ok;
+send(Ref, [Buf|Rest]) when is_binary(Buf) ->
+    ok = gen_server:call(Ref, {send, Buf}, infinity),
+    send(Ref, Rest).
 
-recv({Module, Ref}) ->
-    Module:recv(Ref).
+reply(Ref, Serial) ->
+    reply(Ref, Serial, infinity).
+reply(Ref, Serial, Timeout) when is_pid(Ref), is_integer(Serial) ->
+    receive
+        {verx, Ref, {#remote_message_header{
+                            serial = <<Serial:32>>,
+                            type = <<?REMOTE_REPLY:32>>}, _} = Reply} ->
+            verx_rpc:status(Reply)
+    after
+        Timeout ->
+            {error, eagain}
+    end.
 
-recv({Module, Ref}, Timeout) ->
-    Module:recv(Ref, Timeout).
+recv(Ref) ->
+    recv(Ref, 5000).
+recv(Ref, Timeout) ->
+    Serial = getserial(Ref),
+    recv(Ref, Serial, Timeout).
+recv(Ref, Serial, Timeout) when is_pid(Ref), is_integer(Serial) ->
+    receive
+        {verx, Ref, {#remote_message_header{
+                            serial = <<Serial:32>>,
+                            type = <<?REMOTE_STREAM:32>>,
+                            status = <<?REMOTE_OK:32>>}, []}} ->
+            ok;
+        {verx, Ref, {#remote_message_header{
+                            serial = <<Serial:32>>,
+                            type = <<?REMOTE_STREAM:32>>,
+                            status = <<?REMOTE_CONTINUE:32>>}, Payload}} ->
+            {ok, Payload}
+    after
+        Timeout ->
+            {error, eagain}
+    end.
 
-recvall({Module, Ref}) ->
-    Module:recvall(Ref).
+recvall(Ref) ->
+    recvall(Ref, 2000).
+recvall(Ref, Timeout) ->
+    recvall(Ref, Timeout, []).
+recvall(Ref, Timeout, Acc) when is_pid(Ref) ->
+    receive
+        {verx, Ref, {#remote_message_header{
+                            type = <<?REMOTE_STREAM:32>>,
+                            status = <<?REMOTE_OK:32>>}, []}} ->
+            {ok, lists:reverse(Acc)};
+        % XXX A stream indicates finish by setting the status to
+        % XXX REMOTE_OK. For screenshots, an empty body is returned with the
+        % XXX status set to 'continue'.
+        {verx, Ref, {#remote_message_header{
+                        type = <<?REMOTE_STREAM:32>>,
+                        status = <<?REMOTE_CONTINUE:32>>}, <<>>}} ->
+            {ok, lists:reverse(Acc)};
+        {verx, Ref, {#remote_message_header{
+                        type = <<?REMOTE_STREAM:32>>,
+                        status = <<?REMOTE_CONTINUE:32>>}, Payload}} ->
+            recvall(Ref, Timeout, [Payload|Acc])
+    after
+        Timeout ->
+            {ok, lists:reverse(Acc)}
+    end.
 
-recvall({Module, Ref}, Timeout) ->
-    Module:recvall(Ref, Timeout).
+finish(Ref) when is_pid(Ref) ->
+    gen_server:call(Ref, finish, infinity).
 
-finish({Module, Ref}) ->
-    Module:finish(Ref).
+getserial(Ref) when is_pid(Ref) ->
+    gen_server:call(Ref, getserial).
 
-getserial({Module, Ref}) ->
-    Module:getserial(Ref).
 
 %%-------------------------------------------------------------------------
 %%% Utility functions

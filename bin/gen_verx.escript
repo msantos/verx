@@ -77,28 +77,22 @@ main([File]) ->
     Functions = [ begin
                     {Pattern, Body} = case Arity of
                         0 ->
-                            % name({Module, Ref}) -> Module:call(Ref, 'PROC_NAME').
-                            {[erl_syntax:tuple([
-                                    erl_syntax:variable("Module"),
-                                    erl_syntax:variable("Ref")
-                                    ])],
-                                erl_syntax:application(
-                                    erl_syntax:variable("Module"),
-                                    erl_syntax:atom(call),
-                                    [erl_syntax:variable("Ref"), erl_syntax:atom(Proc)]
-                                    )};
+                            % name(Ref) -> verx_client:call(Ref, 'PROC_NAME').
+                            {[erl_syntax:variable("Ref")],
+                              erl_syntax:application(
+                                erl_syntax:atom(verx_client),
+                                erl_syntax:atom(call),
+                                [erl_syntax:variable("Ref"), erl_syntax:atom(Proc)]
+                              )};
                         _ ->
                             % name(Ref, Arg) -> verx_client:call(Ref, 'PROC_NAME', Arg).
-                            {[erl_syntax:tuple([
-                                    erl_syntax:variable("Module"),
-                                    erl_syntax:variable("Ref")
-                                    ]), erl_syntax:variable("Arg")],
-                                erl_syntax:application(
-                                    erl_syntax:variable("Module"),
-                                    erl_syntax:atom(call),
-                                    [erl_syntax:variable("Ref"), erl_syntax:atom(Proc),
-                                        erl_syntax:variable("Arg")]
-                                        )}
+                            {[erl_syntax:variable("Ref"), erl_syntax:variable("Arg")],
+                              erl_syntax:application(
+                                erl_syntax:atom(verx_client),
+                                erl_syntax:atom(call),
+                                [erl_syntax:variable("Ref"), erl_syntax:atom(Proc),
+                                 erl_syntax:variable("Arg")]
+                              )}
                     end,
 
                     Clause = erl_syntax:clause(Pattern, [], [Body]),
