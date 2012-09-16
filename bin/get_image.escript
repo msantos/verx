@@ -99,6 +99,6 @@ interface(Bridge) ->
     ).
 
 macaddr() ->
-    "52:54:00:" ++ lists:flatten(string:join(
-                [ io_lib:format("~.16B", [N]) || <<N>> <= crypto:rand_bytes(3) ],
-                ":")).
+    "52:54:00:" ++ string:join(
+                [ httpd_util:integer_to_hexlist(N) || <<N>> <= crypto:rand_bytes(3) ],
+                ":").

@@ -19,6 +19,13 @@ main(Opt) ->
 
     call(Opt).
 
+call(["autostart", Name | Arg]) ->
+    Opt = getopt(Arg),
+    Disable = proplists:get_value("disable", Opt, false),
+    {ok, Ref} = connect(Opt),
+    {ok, [Res]} = lookup(Ref, {domain, Name}),
+    rp(verx:domain_set_autostart(Ref, [Res, 1 bxor bool(Disable)]));
+
 call(["capabilities" | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
@@ -61,27 +68,24 @@ call(["dumpxml", Name | Arg]) ->
     {ok, [Domain]} = lookup(Ref, {domain, Name}),
     rp(verx:domain_get_xml_desc(Ref, [Domain, Flags]));
 
-call(["list", "--all" | Arg]) ->
-    Opt = getopt(Arg),
-    {ok, Ref} = connect(Opt),
-
-    {ok, [NumDef]} = verx:num_of_defined_domains(Ref),
-
-    {ok, [NumRun]} = verx:num_of_domains(Ref),
-
-    {ok, [Shutoff]} = verx:list_defined_domains(Ref, [NumDef]),
-    {ok, [Running]} = verx:list_domains(Ref, [NumRun]),
-
-    rp({ok, [{running, domains(Ref, Running)},
-             {shutoff, domains(Ref, Shutoff)}]});
-
 call(["list" | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
-    {ok, [N]} = verx:num_of_domains(Ref),
-    {ok, [Domains]} =  verx:list_domains(Ref, [N]),
+    All = proplists:get_value("all", Opt, false),
 
-    rp(domains(Ref, Domains));
+    {ok, [NumRun]} = verx:num_of_domains(Ref),
+    {ok, [Running]} = verx:list_domains(Ref, [NumRun]),
+
+    N = case All of
+        true ->
+            {ok, [NumDef]} = verx:num_of_defined_domains(Ref),
+            {ok, [Shutoff]} = verx:list_defined_domains(Ref, [NumDef]),
+            [{shutoff, domains(Ref, Shutoff)}];
+        false ->
+            []
+    end,
+
+    rp({ok, [{running, domains(Ref, Running)}|N]});
 
 call(["screenshot", Name | Arg]) ->
     Opt = getopt(Arg),
@@ -192,8 +196,105 @@ call(["vol-download", Name, File | Arg]) ->
     download(Ref, File, Timeout),
     rp(ok);
 
+call(["net-autostart", Name | Arg]) ->
+    Opt = getopt(Arg),
+    Disable = proplists:get_value("disable", Opt, false),
+    {ok, Ref} = connect(Opt),
+    {ok, [Res]} = lookup(Ref, {net, Name}),
+    rp(verx:network_set_autostart(Ref, [Res, 1 bxor bool(Disable)]));
+
+call(["net-create", Name | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+
+    {ok, [Res]} = case file:read_file(Name) of
+        {ok, XML} ->
+            verx:network_define_xml(Ref, [XML]);
+        {error, enoent} ->
+            lookup(Ref, {net, Name})
+        end,
+    rp(verx:network_create(Ref, [Res]));
+
+call(["net-define", File | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+    {ok, XML} = file:read_file(File),
+    rp(verx:network_define_xml(Ref, [XML]));
+
+call(["net-destroy", Name | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+    {ok, [Res]} = lookup(Ref, {net, Name}),
+    rp(verx:network_destroy(Ref, [Res]));
+
+call(["net-dumpxml", Name | Arg]) ->
+    Opt = getopt(Arg),
+    Flags = proplists:get_value("flags", Opt, 0),
+    {ok, Ref} = connect(Opt),
+    {ok, [Res]} = lookup(Ref, {net, Name}),
+    rp(verx:network_get_xml_desc(Ref, [Res, Flags]));
+
+call(["net-info", Name | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+    {ok, [Res]} = lookup(Ref, {net, Name}),
+
+    {ok, [Persistent]} = verx:network_is_persistent(Ref, [Res]),
+    {ok, [Autostart]} = verx:network_get_autostart(Ref, [Res]),
+    {ok, [Bridge]} = verx:network_get_bridge_name(Ref, [Res]),
+
+    rp({ok, [{persistent, bool(Persistent)},
+             {autostart, bool(Autostart)},
+             {bridgename, Bridge}]});
+
+call(["net-list" | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+
+    {ok, [Num]} = verx:num_of_networks(Ref),
+    {ok, [List]} = verx:list_networks(Ref, [Num]),
+
+    rp({ok, [ begin
+                {ok, [Res]} = lookup(Ref, {net, Name}),
+                {ok, [Active]} = verx:network_is_active(Ref, [Res]),
+                {ok, [Autostart]} = verx:network_get_autostart(Ref, [Res]),
+                {Name, [{state, bool(Active)}, {autostart, bool(Autostart)}]}
+              end || Name <- List ]});
+
+call(["net-undefine", Name | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+    {ok, [Res]} = lookup(Ref, {net, Name}),
+    rp(verx:network_undefine(Ref, [Res]));
+
+call(["nwfilter-define", File | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+    {ok, XML} = file:read_file(File),
+    rp(verx:nwfilter_define_xml(Ref, [XML]));
+
+call(["nwfilter-dumpxml", Name | Arg]) ->
+    Opt = getopt(Arg),
+    Flags = proplists:get_value("flags", Opt, 0),
+    {ok, Ref} = connect(Opt),
+    {ok, [Res]} = lookup(Ref, {filter, Name}),
+    rp(verx:nwfilter_get_xml_desc(Ref, [Res, Flags]));
+
+call(["nwfilter-list" | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+    {ok, [Num]} = verx:num_of_nwfilters(Ref),
+    rp(verx:list_nwfilters(Ref, [Num]));
+
+call(["nwfilter-undefine", Name | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+    {ok, [Res]} = lookup(Ref, {filter, Name}),
+    rp(verx:nwfilter_undefine(Ref, [Res]));
+
 call(_) ->
     Help = [
+        "autostart",
         "capabilities",
         "console",
         "create",
@@ -202,13 +303,28 @@ call(_) ->
         "destroy",
         "dumpxml",
         "list",
-        "list --all",
         "screenshot",
         "recv",
         "send",
         "send-key",
         "shutdown",
         "undefine",
+
+        "net-autostart",
+        "net-create",
+        "net-define",
+        "net-destroy ",
+        "net-dumpxml",
+        "net-info",
+        "net-list",
+        "net-start",
+        "net-undefine",
+        "net-uuid",
+
+        "nwfilter-define",
+        "nwfilter-dumpxml",
+        "nwfilter-list",
+        "nwfilter-undefine"
 
         "pool-list",
         "vol-list",
@@ -286,6 +402,16 @@ lookup(Ref, {domain, Name}) ->
             fun() -> verx:domain_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end ],
     lookup_1(Fun);
 
+lookup(Ref, {filter, Name}) ->
+    Fun = [ fun() -> verx:nwfilter_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end,
+            fun() -> verx:nwfilter_lookup_by_name(Ref, [maybe_binary(Name)]) end ],
+    lookup_1(Fun);
+
+lookup(Ref, {net, Name}) ->
+    Fun = [ fun() -> verx:network_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end,
+            fun() -> verx:network_lookup_by_name(Ref, [maybe_binary(Name)]) end ],
+    lookup_1(Fun);
+
 lookup(Ref, {pool, Name}) ->
     Fun = [ fun() -> verx:storage_pool_lookup_by_name(Ref, [maybe_binary(Name)]) end,
             fun() -> verx:storage_pool_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end ],
@@ -318,7 +444,9 @@ maybe_binary(N) when is_binary(N) -> N;
 maybe_binary(N) when is_list(N) -> list_to_binary(N).
 
 bool(0) -> false;
-bool(1) -> true.
+bool(1) -> true;
+bool(false) -> 0;
+bool(true) -> 1.
 
 default_port(verx_client_tcp) -> ?LIBVIRT_TCP_PORT;
 default_port(verx_client_tls) -> ?LIBVIRT_TLS_PORT;
