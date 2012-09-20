@@ -32,7 +32,10 @@ call(["capabilities" | Arg]) ->
     rp(verx:get_capabilities(Ref));
 
 call(["console", Name | Arg]) ->
-    console(Name, Arg);
+    Opt = getopt(Arg),
+    Pid = spawn_link(fun() -> console_recv(Name, Opt) end),
+    ok = io:setopts(standard_io, [binary]),
+    tty_read(Pid);
 
 call(["ctl-alt-del", Name | Arg]) ->
     call(["send-key", Name, "29 56 111" | Arg]);
@@ -486,12 +489,6 @@ progress(69, Total) when Total ->
     io:format(" ~p bytes~n", [Total]);
 progress(_, _) ->
     io:format(".").
-
-console(Name, Arg) ->
-    Opt = getopt(Arg),
-    Pid = spawn_link(fun() -> console_recv(Name, Opt) end),
-    ok = io:setopts(standard_io, [binary]),
-    tty_read(Pid).
 
 tty_read(Pid) ->
     Buf = io:get_line(""),
