@@ -60,10 +60,11 @@ init([Pid, Opt]) ->
     {ok, Socket} = procket:socket(?PF_LOCAL, ?SOCK_STREAM, 0),
 
     PathMax = procket:unix_path_max(),
+    Len = byte_size(Path),
 
-    Sun = <<?PF_LOCAL:16/native,            % sun_family
-            Path/binary,                    % socket path
-            0:((PathMax-byte_size(Path))*8)>>,
+    Sun = <<(procket:sockaddr_common(?PF_LOCAL, Len))/binary,   % sun_family
+            Path/binary,                                        % socket path
+            0:((PathMax-Len)*8)>>,
 
     ok = procket:connect(Socket, Sun),
 
