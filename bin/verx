@@ -159,6 +159,18 @@ call(["undefine", Name | Arg]) ->
     {ok, [Domain]} = lookup(Ref, {domain, Name}),
     rp(verx:domain_undefine(Ref, [Domain]));
 
+call(["version" | Arg]) ->
+    Opt = getopt(Arg),
+    {ok, Ref} = connect(Opt),
+
+    {ok, [Type]} = verx:get_type(Ref),
+    {ok, [Version]} = verx:get_version(Ref),
+    {ok, [Lib]} = verx:get_lib_version(Ref),
+
+    rp({ok, [{type, Type},
+             {version, version(Version)},
+             {lib_version, version(Lib)}]});
+
 call(["pool-list" | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
@@ -312,6 +324,7 @@ call(_) ->
         "send-key",
         "shutdown",
         "undefine",
+        "version",
 
         "net-autostart",
         "net-create",
@@ -518,3 +531,9 @@ console_read(Ref) ->
             verx_client:send(Ref, Buf),
             console_read(Ref)
     end.
+
+version(Version) when is_integer(Version) ->
+    Major = Version div 1000000,
+    Minor = Version rem 1000000 div 1000,
+    Release = Version rem 1000000 rem 1000,
+    {Major, Minor, Release}.
