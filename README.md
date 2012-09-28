@@ -55,8 +55,8 @@ environment variables before running the script:
 
 ## TESTING EVERYTHING WORKS
 
-To quickly test everything works, you can try running `bin/verx`, an
-escript that provides a simple command line interface to the verx library.
+To quickly test everything works, try running `bin/verx`, an escript
+that provides a simple command line interface to the verx library.
 
 You'll have to set up the ERL\_LIBS environment variable first, e.g.,
 if verx is checked out in ~/src:
@@ -303,8 +303,8 @@ To remove the VM, undefine it:
 
 ### SUSPENDING AND RESUMING A DOMAIN
 
-This example is the Erlang equivalent of a Python script to manipulate a
-running domain. The example is taken from:
+This example provides the Erlang equivalent of a Python script to
+manipulate a running domain. The example was taken from:
 
 <http://www.ibm.com/developerworks/linux/library/l-libvirt/>
 
@@ -392,11 +392,11 @@ similar to the example in the Ruby libvirt documentation
 
 ### SYSTEM CONSOLE
 
-The VM system console can be accessed from any of the transports.
+The VM system console can be accessed using any of the transports.
 
     % Connect to libvirtd using the Unix socket
     1> {ok, Ref} = verx_client:start().
-    {ok,{verx_client_unix,<0.43.0>}}
+    {ok,<0.43.0>}
 
     % Open a remote protocol session to the Linux containers hypervisor
     2> verx:open(Ref, ["lxc:///", 0]).
@@ -428,7 +428,8 @@ The VM system console can be accessed from any of the transports.
 
 ### TAKING A SCREENSHOT
 
-Here is an example of using the libvirt stream interface.
+An example of using the libvirt stream interface to capture an image of
+the VM console:
 
     -module(ss).
     -export([host/1]).
@@ -521,15 +522,9 @@ If there are any errors, read through `bin/gen_remote_protocol.escript`.
 
 ## TODO
 
-* fix broken include paths for bin/verx, include/verx.hrl
-
-* generate verx.hrl from virnetprotocol.c
-
 * verx\_client\_tls
     * single byte received before packet (works if thrown away)
 
 * verx\_client\_tcp
     * gen\_server halts when receiving a tcp\_closed message, causes an
       error if the caller does a verx\_client:close/1
-
-* merge the Unix, TCP and TLS transports
