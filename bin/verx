@@ -356,7 +356,8 @@ call(_) ->
 rp(Term) ->
     io:format("~p~n", [Term]).
 
-connect(Opt) ->
+connect(Opt0) ->
+    Opt = proplists:substitute_aliases([{"connect", "uri"}], Opt0),
     URI = proplists:get_value("uri", Opt, "qemu:///system"),
 
     Transport = list_to_atom(proplists:get_value("transport", Opt,
