@@ -392,7 +392,8 @@ connect(Opt0) ->
     {ok, Ref}.
 
 getopt(Opts) ->
-    getopt(Opts, []).
+    Opts1 = lists:flatmap(fun(X)-> string:tokens(X, "=") end, Opts),
+    getopt(Opts1, []).
 getopt([], Acc) ->
     lists:reverse(Acc);
 getopt(["--" ++ Key, "--" ++ _ = Val | Rest], Acc) ->
