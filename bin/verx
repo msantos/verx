@@ -391,9 +391,9 @@ connect(Opt0) ->
     ok = verx:open(Ref, [URI, 0]),
     {ok, Ref}.
 
-getopt(Opts) ->
-    Opts1 = lists:flatmap(fun(X)-> string:tokens(X, "=") end, Opts),
-    getopt(Opts1, []).
+getopt(Opts0) ->
+    Opts = lists:flatmap(fun(X)-> string:tokens(X, "=") end, Opts0),
+    getopt(Opts, []).
 getopt([], Acc) ->
     lists:reverse(Acc);
 getopt(["--" ++ Key, "--" ++ _ = Val | Rest], Acc) ->

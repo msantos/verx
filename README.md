@@ -520,6 +520,52 @@ To create the remote\_protocol\_xdr.erl from a remote\_protocol.x file:
 
 If there are any errors, read through `bin/gen_remote_protocol.escript`.
 
+## VERX CLIENT
+
+`verx` is a simple command line client similar to `virsh`. To use
+`verx`, the ERL\_LIBS environment variable must point to the directory
+_containing_ the verx repository:
+
+    export ERL_LIBS=$ERL_LIBS:~/src
+    export PATH=$PATH:~/src/verx/bin
+
+Running `verx` without any options will return the list of commands.
+
+All `verx` commands can take some options:
+
+    --uri : URI supported by libvirt (default: qemu:///system)
+    --transport : (default: verx_client_unix)
+        verx_client_unix
+        verx_client_tcp
+        verx_client_tls
+
+For TCP and TLS transports:
+
+    --host : hostname
+    --port : port
+
+For the TLS transport:
+
+    --cacert : path to CA cert (default: /etc/pki/CA/cacert.pem)
+    --cert : path to client cert (default: /etc/pki/libvirt/clientcert.pem)
+    --depth : cert validation depth (default: 1)
+
+Examples:
+
+    # List all defined Qemu/KVM instances through the libvirtd Unix socket
+    verx list --all
+
+    # List running LXC instances
+    verx list --uri=lxc:///
+
+    # Dump the configuration of a KVM using the TLS transport over IPv6
+    verx dumpxml myvm --transport verx_client_tls --host ::1
+
+    # Access the console of a container over TLS/IPv6
+    # Use ctl-C to exit
+    verx console mylxc --uri lxc:/// --transport verx_client_tls --host ::1
+
+
 ## TODO
 
 * verx\_client\_tls
