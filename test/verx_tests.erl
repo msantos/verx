@@ -37,7 +37,7 @@
 
 
 verx_test_() ->
-    {timeout, 120, [
+    {timeout, 240, [
             {?LINE, fun() -> run(kvm, verx_client_unix) end},
 %            {?LINE, fun() -> run(kvm, verx_client_tcp) end},
             {?LINE, fun() -> run(kvm, verx_client_tls) end},
