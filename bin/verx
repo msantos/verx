@@ -360,8 +360,8 @@ connect(Opt0) ->
     Opt = proplists:substitute_aliases([{"connect", "uri"}], Opt0),
     URI = proplists:get_value("uri", Opt, "qemu:///system"),
 
-    Transport = list_to_atom(proplists:get_value("transport", Opt,
-                    "verx_client_unix")),
+    Transport = transport(list_to_atom(proplists:get_value("transport", Opt,
+                    "verx_client_unix"))),
 
     % Unix socket
     Path = proplists:get_value("path", Opt, ?LIBVIRT_SOCK_PATH),
@@ -390,6 +390,11 @@ connect(Opt0) ->
             ]),
     ok = verx:open(Ref, [URI, 0]),
     {ok, Ref}.
+
+transport(tcp) -> verx_client_tcp;
+transport(tls) -> verx_client_tls;
+transport(unix) -> verx_client_unix;
+transport(N) -> N.
 
 getopt(Opts0) ->
     Opts = lists:flatmap(fun(X)-> string:tokens(X, "=") end, Opts0),
