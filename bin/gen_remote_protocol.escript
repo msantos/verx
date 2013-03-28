@@ -33,8 +33,12 @@ main([Src0, Dst0]) ->
     Include = filename:absname("include", Dir),
     Hrl = filename:basename(Src0, ".x") ++ ".hrl",
 
-    true = code:add_patha(filename:dirname(escript:script_name())
-                            ++ "/../deps/erpcgen/ebin"),
+    code:add_paths([
+        filename:dirname(escript:script_name())
+            ++ "/../deps/erpcgen/ebin",
+        filename:dirname(escript:script_name())
+            ++ "/../../erpcgen/ebin"
+    ]),
 
     % modules will not be loaded without rehashing here
     code:rehash(),
