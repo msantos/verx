@@ -33,18 +33,16 @@ main([Src0, Dst0]) ->
     Include = filename:absname("include", Dir),
     Hrl = filename:basename(Src0, ".x") ++ ".hrl",
 
-    code:add_paths([
-        filename:dirname(escript:script_name())
-            ++ "/../deps/erpcgen/ebin",
-        filename:dirname(escript:script_name())
-            ++ "/../../erpcgen/ebin"
-    ]),
-
-    % modules will not be loaded without rehashing here
-    code:rehash(),
-
     case file_exists(Src) of
         true ->
+            code:add_paths([
+                Dir ++ "deps/erpcgen/ebin",
+                Dir ++ "../erpcgen/ebin"
+            ]),
+
+            % modules will not be loaded without rehashing here
+            code:rehash(),
+
             [ok, ok] = generate_xdr(Src, Dst),
             move_hrl(Dst ++ "/" ++ Hrl , Include ++ "/" ++ Hrl);
         false -> ok
