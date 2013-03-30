@@ -7,15 +7,14 @@
 -include_lib("verx/include/verx.hrl").
 
 main(Opt) ->
+    Basedir = filename:absname(filename:dirname(escript:script_name())),
+
+    Paths = [ Basedir ++ "/../ebin" ] ++
+        filelib:wildcard(Basedir ++ "/../deps/*/ebin") ++
+        filelib:wildcard(Basedir ++ "/../../*/ebin"),
+
     % load verx
-    true = code:add_pathz(filename:dirname(escript:script_name())
-        ++ "/../ebin"),
-
-    true = code:add_pathz(filename:dirname(escript:script_name())
-        ++ "/../deps/procket/ebin"),
-
-    true = code:add_pathz(filename:dirname(escript:script_name())
-        ++ "/../deps/uuid/ebin"),
+    code:add_paths(Paths),
 
     call(Opt).
 
