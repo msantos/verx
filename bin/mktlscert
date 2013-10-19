@@ -1,0 +1,162 @@
+#!/bin/bash
+
+set -e
+#set -x
+
+usage() {
+    cat<<EOF
+$0: <command>
+
+    ca : <org> <days> : make a CA cert
+    server : <org> <cn> : make a server cert
+    client : <org> <cn> <country> <state> <city> : make a client cert
+
+Generate TLS certificates for libvirtd.  See:
+
+    http://wiki.libvirt.org/page/TLSSetup
+
+Make a CA cert for organization "listincomprehension.com":
+
+    mkcert ca listincomprehension.com 3650
+
+Make a server cert for host "einval":
+
+    mkcert server listincomprehension.com einval
+
+Make a client cert for host "einval":
+
+    mkcert client listincomprehension.com einval CA ON Toronto
+EOF
+}
+
+ca_info() {
+    cat<<EOF
+cn = $1
+ca
+cert_signing_key
+expiration_days = $2
+EOF
+}
+
+server_info() {
+    cat<<EOF
+organization = $1
+cn = $2
+tls_www_server
+encryption_key
+signing_key
+EOF
+}
+
+client_info() {
+    cat<<EOF
+organization = $1
+cn = $2
+country = $3
+state = $4
+locality = $5
+tls_www_client
+encryption_key
+signing_key
+EOF
+}
+
+case $1 in
+    ca)
+        ORG=${2:=example.com}
+        DAYS=${3:=3650}
+
+        mkdir -p ca
+        pushd ca
+
+        [ ! -f certificate_authority_key.pem ]
+        ca_info $ORG $DAYS > certificate_authority_template.info
+
+        (umask 277 && certtool --generate-privkey > certificate_authority_key.pem)
+
+        certtool --generate-self-signed \
+            --template certificate_authority_template.info \
+            --load-privkey certificate_authority_key.pem \
+            --outfile certificate_authority_certificate.pem
+
+        ls -la certificate_authority_key.pem
+        ls -la certificate_authority_certificate.pem
+
+        popd
+
+        cat<<EOF
+mkdir -p /etc/pki/CA
+cp ca/certificate_authority_certificate /etc/pki/CA/cacert.pem
+EOF
+        ;;
+
+    server)
+        ORG=${2:=example.com}
+        CN=${3:=libvirt}
+
+        [ -f ca/certificate_authority_key.pem ]
+
+        mkdir -p server
+        pushd server
+
+        server_info $ORG $CN > ${CN}_server_template.info
+
+        (umask 277 && certtool --generate-privkey > ${CN}_server_key.pem)
+
+        certtool --generate-certificate \
+            --template ${CN}_server_template.info \
+            --load-privkey ${CN}_server_key.pem \
+            --load-ca-certificate ../ca/certificate_authority_certificate.pem \
+            --load-ca-privkey ../ca/certificate_authority_key.pem \
+            --outfile ${CN}_server_certificate.pem
+
+        ls -la ${CN}_server_certificate.pem
+        ls -la ${CN}_server_key.pem
+
+        popd
+
+        cat<<EOF
+mkdir -p /etc/pki/libvirt/private
+cp server/${CN}_server_certificate.pem /etc/pki/libvirt/servercert.pem
+cp server/${CN}_server_key.pem /etc/pki/libvirt/private/serverkey.pem
+EOF
+        ;;
+
+    client)
+        ORG=${2:=example.com}
+        CN=${3:=verxclient}
+        COUNTRY=${4:=CA}
+        STATE=${5:=ON}
+        LOCALITY=${6:=Toronto}
+
+        [ -f ca/certificate_authority_key.pem ]
+
+        mkdir -p client
+        pushd client
+
+        client_info $ORG $CN $COUNTRY $STATE $LOCALITY > ${CN}_client_template.info
+
+        (umask 277 && certtool --generate-privkey > ${CN}_client_key.pem)
+
+        certtool --generate-certificate \
+            --template ${CN}_client_template.info \
+            --load-privkey ${CN}_client_key.pem \
+            --load-ca-certificate ../ca/certificate_authority_certificate.pem \
+            --load-ca-privkey ../ca/certificate_authority_key.pem \
+            --outfile ${CN}_client_certificate.pem
+
+        ls -la ${CN}_client_certificate.pem
+        ls -la ${CN}_client_key.pem
+
+        popd
+
+        cat<<EOF
+mkdir -p /etc/pki/libvirt/private
+cp client/${CN}_client_certificate.pem /etc/pki/libvirt/clientcert.pem
+cp client/${CN}_client_key.pem /etc/pki/libvirt/private/clientkey.pem
+EOF
+        ;;
+    *)
+        usage
+        ;;
+esac
