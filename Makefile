@@ -19,4 +19,5 @@ deps: $(REBAR)
 	@$(REBAR) check-deps || $(REBAR) get-deps
 
 test: $(REBAR) compile
+	@$(REBAR) eunit suite=verx_rpc
 	@$(REBAR) eunit suite=verx
