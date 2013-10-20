@@ -36,16 +36,31 @@
 -include("verx.hrl").
 
 
-verx_test_() ->
+verx_client_unix_test_() ->
     {timeout, 240, [
             {?LINE, fun() -> run(kvm, verx_client_unix) end},
-%            {?LINE, fun() -> run(kvm, verx_client_tcp) end},
-            {?LINE, fun() -> run(kvm, verx_client_tls) end},
-
-            {?LINE, fun() -> run(lxc, verx_client_unix) end},
-%            {?LINE, fun() -> run(lxc, verx_client_tcp) end},
-            {?LINE, fun() -> run(lxc, verx_client_tls) end}
+            {?LINE, fun() -> run(lxc, verx_client_unix) end}
             ]}.
+
+verx_client_tls_test_() ->
+    case os:getenv("VERX_TEST_CLIENT_TLS") of
+        false -> [];
+        _ ->
+            {timeout, 480, [
+                {?LINE, fun() -> run(kvm, verx_client_tls) end},
+                {?LINE, fun() -> run(lxc, verx_client_tls) end}
+            ]}
+    end.
+
+verx_client_tcp_test_() ->
+    case os:getenv("VERX_TEST_CLIENT_TCP") of
+        false -> [];
+        _ ->
+            {timeout, 480, [
+                {?LINE, fun() -> run(kvm, verx_client_tcp) end},
+                {?LINE, fun() -> run(lxc, verx_client_tcp) end}
+            ]}
+    end.
 
 run(kvm, Transport) ->
     error_logger:info_report([{vm, kvm}, {transport, Transport}]),
