@@ -17,15 +17,15 @@ Generate TLS certificates for libvirtd.  See:
 
 Make a CA cert for organization "listincomprehension.com":
 
-    mkcert ca listincomprehension.com 3650
+    $0 ca listincomprehension.com 3650
 
 Make a server cert for host "einval":
 
-    mkcert server listincomprehension.com einval
+    $0 server listincomprehension.com einval
 
 Make a client cert for host "einval":
 
-    mkcert client listincomprehension.com einval CA ON Toronto
+    $0 client listincomprehension.com einval CA ON Toronto
 EOF
 }
 
