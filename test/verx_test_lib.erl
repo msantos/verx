@@ -40,16 +40,7 @@
 %%
 
 % Not all drivers support the same features
-run({Ref, _} = State, Transport) ->
-    {ok, [Type0]} = verx:get_type(Ref),
-    Type = case Type0 of
-        <<"Test">> -> test;
-        <<"QEMU">> -> kvm;
-        <<"LXC">> -> lxc
-    end,
-    run(Type, State, Transport).
-
-run(test, State, _Transport) ->
+run(State) ->
     {inorder, [
             verx_test_lib:num_of_defined_domains(State),
             verx_test_lib:num_of_domains(State),
@@ -67,107 +58,28 @@ run(test, State, _Transport) ->
             verx_test_lib:get_uri(State),
             verx_test_lib:is_secure(State),
             verx_test_lib:get_capabilities(State)
-    ]};
-run(kvm, State, _Transport) ->
-    {inorder, [
-            verx_test_lib:num_of_defined_domains(State),
-            verx_test_lib:num_of_domains(State),
-            verx_test_lib:list_defined_domains(State),
-            verx_test_lib:list_domains(State),
-            verx_test_lib:domain_suspend(State),
-            verx_test_lib:domain_resume(State),
-            verx_test_lib:domain_shutdown(State),
-            verx_test_lib:screenshot(State),
-            verx_test_lib:lookup(State, "testvm"),
-            verx_test_lib:node_get_info(State),
-            verx_test_lib:node_get_cells_free_memory(State),
-            verx_test_lib:get_version(State),
-            verx_test_lib:get_lib_version(State),
-            verx_test_lib:get_hostname(State),
-            verx_test_lib:get_uri(State),
-            verx_test_lib:node_get_free_memory(State),
-            verx_test_lib:node_get_security_model(State),
-            verx_test_lib:is_secure(State),
-            verx_test_lib:get_capabilities(State)
-    ]};
-run(lxc, State, Transport) ->
-    {inorder, [
-            verx_test_lib:console_create_file(State, Transport)
     ]}.
 
 %%
 %% Hypervisors
 %%
 start(Transport) ->
-    start(Transport, test).
-start(Transport, VM) ->
     {ok, Ref} = verx_client:start([{transport, Transport}]),
-    ok = case VM of
-        test -> verx:open(Ref, [<<"test:///default">>, 0]);
-        kvm -> verx:open(Ref);
-        lxc -> verx:open(Ref, [<<"lxc:///">>, 0])
-    end,
-    {ok, Domain} = create(Ref, VM),
+    ok = verx:open(Ref, [<<"test:///default">>, 0]),
+    {ok, [Domain]} = verx:lookup(Ref, {domain, <<"test">>}),
     {Ref, Domain}.
 
-%% TEST
-create(Ref, test) ->
-    {ok, [Domain]} = verx:lookup(Ref, {domain, <<"test">>}),
-    {ok, Domain};
-
-%% KVM
-create(Ref, kvm) ->
-    Path = filename:join([
-            filename:dirname(code:which(vert)),
-            "..",
-            "priv",
-            "example.xml"
-            ]),
-
-    {ok, XML} = file:read_file(Path),
-
-    {ok, [Domain]} = verx:domain_define_xml(Ref, [XML]),
-    ok = verx:domain_create(Ref, [Domain]),
-    {ok, Domain};
-
-%% LXC
-create(Ref, lxc) ->
-    Name = "test-" ++ integer_to_list(erlang:phash2(Ref)),
-
-    <<Bytes:3/bytes, _/binary>> = erlang:md5(Name),
-    Macaddr = "52:54:00:" ++ string:join([ httpd_util:integer_to_hexlist(N)
-        || <<N:8>> <= Bytes ], ":"),
-
-    XML = template(Name, Macaddr),
-
-    {ok, [Domain]} = verx:domain_define_xml(Ref, [XML]),
-    verx:domain_create(Ref, [Domain]),
-
-    {ok, Domain}.
-
-template(Name, Macaddr) ->
-"<domain type='lxc'>
-    <name>" ++ Name ++ "</name>
-    <memory>102400</memory>
-    <os>
-        <type>exe</type>
-        <init>/bin/sh</init>
-    </os>
-    <devices>
-        <console type='pty'/>
-            <interface type='bridge'>
-                <mac address='" ++ Macaddr ++ "'/>
-                <source bridge='br0'/>
-            </interface>
-    </devices>
-</domain>".
-
+destroy(Ref, Domain)  ->
+    ok = verx:domain_destroy(Ref, [Domain]),
+    ok = verx:domain_undefine(Ref, [Domain]),
+    verx:close(Ref),
+    catch verx_client:stop(Ref),
+    ok.
 
 %%
 %% libvirt functions calls
 %%
 
-% KVM, test
 num_of_defined_domains({Ref, _Domain}) ->
     {ok, [NumDef]} = verx:num_of_defined_domains(Ref),
     ?_assert(is_integer(NumDef)).
@@ -246,27 +158,6 @@ is_secure({Ref, _Domain}) ->
 get_capabilities({Ref, _Domain}) ->
     N = verx:is_secure(Ref),
     ?_assertMatch({ok, _}, N).
-
-% lxc
-console_create_file({Ref, Domain}, verx_client_unix) ->
-    File = "/tmp/console-test-" ++ os:getpid(),
-    {ok, FH} = file:open(File, [raw, write, exclusive]),
-    ok = file:close(FH),
-    ok = verx:domain_open_console(Ref, [Domain, void, 0]),
-    ok = verx_client:send(Ref, [list_to_binary(["/bin/rm ", File, "\n"])]),
-    verx_client:finish(Ref),
-    % XXX race condition: must wait for the file to disappear from /tmp
-    timer:sleep(1000),
-    ?_assertEqual({error, enoent}, file:read_file(File));
-console_create_file({_Ref, _Domain}, _) ->
-    ?_assert(true).
-
-destroy(Ref, Domain)  ->
-    ok = verx:domain_destroy(Ref, [Domain]),
-    ok = verx:domain_undefine(Ref, [Domain]),
-    verx:close(Ref),
-    catch verx_client:stop(Ref),
-    ok.
 
 %%
 %% Utilities

@@ -42,7 +42,7 @@ transport_test_() ->
             {setup,
                 fun start/0,
                 fun stop/1,
-                fun(State) -> verx_test_lib:run(State, verx_client_tcp) end
+                fun verx_test_lib:run/1
             };
         false ->
             []
