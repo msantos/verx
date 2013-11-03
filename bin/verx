@@ -519,8 +519,13 @@ console_recv(Name, Opt) ->
     Devname = proplists:get_value("devname", Opt, void),
     Flags = list_to_integer(proplists:get_value("flags", Opt, "0")),
     {ok, [D]} = lookup(Ref, {domain, Name}),
-    ok = verx:domain_open_console(Ref, [D, Devname, Flags]),
-    console_read(Ref).
+    case verx:domain_open_console(Ref, [D, Devname, Flags]) of
+        ok ->
+            console_read(Ref);
+        Error ->
+            io:format("~p~n", [Error]),
+            halt(0)
+    end.
 
 console_read(Ref) ->
     receive
