@@ -35,27 +35,34 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("verx.hrl").
 
-args_open_encode_decode_test() ->
+rpc_test_() ->
+    [
+        args_open_encode_decode(),
+        args_domain_create_xml_encode_decode(),
+        ret_domain_create_xml_encode_decode()
+    ].
+
+args_open_encode_decode() ->
     % Use <<>> instead "" so the decode will match up
     Args = [<<>>, 0],
 
     {Header, Payload} = verx_rpc:call('REMOTE_PROC_OPEN', Args),
     Msg = verx_rpc:encode({Header, Payload}),
 
-    {Header, Args} = verx_rpc:decode(Msg).
+    ?_assertEqual({Header, Args}, verx_rpc:decode(Msg)).
 
-args_domain_create_xml_encode_decode_test() ->
+args_domain_create_xml_encode_decode() ->
     UUID = <<"97da79eb-5b19-7be8-cb76-a1acff00e4d3">>,
     Args = [UUID, byte_size(UUID)],
 
     {Header, Enc} = verx_rpc:call('REMOTE_PROC_DOMAIN_CREATE_XML', Args),
     Msg = verx_rpc:encode({Header, Enc}),
 
-    {Header, Args} = verx_rpc:decode(Msg).
+    ?_assertEqual({Header, Args}, verx_rpc:decode(Msg)).
 
 % Composite type: enc_remote_nonnull_domain composed of
 %   enc_remote_nonnull_string, enc_remote_uuid, length of string
-ret_domain_create_xml_encode_decode_test() ->
+ret_domain_create_xml_encode_decode() ->
     UUIDString = <<"97da79eb-5b19-7be8-cb76-a1acff00e4d3">>,
     UUID = <<1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6>>, % 16 bytes
 
@@ -65,4 +72,4 @@ ret_domain_create_xml_encode_decode_test() ->
     {Header, Enc} = verx_rpc:reply('REMOTE_PROC_DOMAIN_CREATE_XML', Args),
     Msg = verx_rpc:encode({Header, Enc}),
 
-    {Header, Args} = verx_rpc:decode(Msg).
+    ?_assertEqual({Header, Args}, verx_rpc:decode(Msg)).
