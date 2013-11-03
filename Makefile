@@ -19,6 +19,6 @@ deps: $(REBAR)
 	@$(REBAR) check-deps || $(REBAR) get-deps
 
 test: $(REBAR) compile
-	@$(REBAR) xref eunit
+	@$(REBAR) xref eunit recursive=false
 
 .PHONY: test

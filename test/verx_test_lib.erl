@@ -1,4 +1,4 @@
-%% Copyright (c) 2012-2013, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2013, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -35,13 +35,39 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("verx.hrl").
 
+%%
+%% Test Sets
+%%
+
+% Not all drivers support the same features
 run({Ref, _} = State, Transport) ->
     {ok, [Type0]} = verx:get_type(Ref),
     Type = case Type0 of
+        <<"Test">> -> test;
         <<"QEMU">> -> kvm;
         <<"LXC">> -> lxc
     end,
     run(Type, State, Transport).
+
+run(test, State, _Transport) ->
+    {inorder, [
+            verx_test_lib:num_of_defined_domains(State),
+            verx_test_lib:num_of_domains(State),
+            verx_test_lib:list_defined_domains(State),
+            verx_test_lib:list_domains(State),
+            verx_test_lib:domain_suspend(State),
+            verx_test_lib:domain_resume(State),
+            verx_test_lib:domain_shutdown(State),
+            verx_test_lib:lookup(State, "test"),
+            verx_test_lib:node_get_info(State),
+            verx_test_lib:node_get_cells_free_memory(State),
+            verx_test_lib:get_version(State),
+            verx_test_lib:get_lib_version(State),
+            verx_test_lib:get_hostname(State),
+            verx_test_lib:get_uri(State),
+            verx_test_lib:is_secure(State),
+            verx_test_lib:get_capabilities(State)
+    ]};
 run(kvm, State, _Transport) ->
     {inorder, [
             verx_test_lib:num_of_defined_domains(State),
@@ -69,9 +95,82 @@ run(lxc, State, Transport) ->
             verx_test_lib:console_create_file(State, Transport)
     ]}.
 
+%%
+%% Hypervisors
+%%
+start(Transport) ->
+    start(Transport, test).
+start(Transport, VM) ->
+    {ok, Ref} = verx_client:start([{transport, Transport}]),
+    ok = case VM of
+        test -> verx:open(Ref, [<<"test:///default">>, 0]);
+        kvm -> verx:open(Ref);
+        lxc -> verx:open(Ref, [<<"lxc:///">>, 0])
+    end,
+    {ok, Domain} = create(Ref, VM),
+    {Ref, Domain}.
+
+%% TEST
+create(Ref, test) ->
+    {ok, [Domain]} = verx:lookup(Ref, {domain, <<"test">>}),
+    {ok, Domain};
+
+%% KVM
+create(Ref, kvm) ->
+    Path = filename:join([
+            filename:dirname(code:which(vert)),
+            "..",
+            "priv",
+            "example.xml"
+            ]),
+
+    {ok, XML} = file:read_file(Path),
+
+    {ok, [Domain]} = verx:domain_define_xml(Ref, [XML]),
+    ok = verx:domain_create(Ref, [Domain]),
+    {ok, Domain};
+
+%% LXC
+create(Ref, lxc) ->
+    Name = "test-" ++ integer_to_list(erlang:phash2(Ref)),
+
+    <<Bytes:3/bytes, _/binary>> = erlang:md5(Name),
+    Macaddr = "52:54:00:" ++ string:join([ httpd_util:integer_to_hexlist(N)
+        || <<N:8>> <= Bytes ], ":"),
+
+    XML = template(Name, Macaddr),
+
+    {ok, [Domain]} = verx:domain_define_xml(Ref, [XML]),
+    verx:domain_create(Ref, [Domain]),
+
+    {ok, Domain}.
+
+template(Name, Macaddr) ->
+"<domain type='lxc'>
+    <name>" ++ Name ++ "</name>
+    <memory>102400</memory>
+    <os>
+        <type>exe</type>
+        <init>/bin/sh</init>
+    </os>
+    <devices>
+        <console type='pty'/>
+            <interface type='bridge'>
+                <mac address='" ++ Macaddr ++ "'/>
+                <source bridge='br0'/>
+            </interface>
+    </devices>
+</domain>".
+
+
+%%
+%% libvirt functions calls
+%%
+
+% KVM, test
 num_of_defined_domains({Ref, _Domain}) ->
     {ok, [NumDef]} = verx:num_of_defined_domains(Ref),
-    ?_assert(NumDef > 0).
+    ?_assert(is_integer(NumDef)).
 
 num_of_domains({Ref, _Domain}) ->
     {ok, [NumRun]} = verx:num_of_domains(Ref),
@@ -148,6 +247,7 @@ get_capabilities({Ref, _Domain}) ->
     N = verx:is_secure(Ref),
     ?_assertMatch({ok, _}, N).
 
+% lxc
 console_create_file({Ref, Domain}, verx_client_unix) ->
     File = "/tmp/console-test-" ++ os:getpid(),
     {ok, FH} = file:open(File, [raw, write, exclusive]),
@@ -168,58 +268,20 @@ destroy(Ref, Domain)  ->
     catch verx_client:stop(Ref),
     ok.
 
-start(Transport, VM) ->
-    {ok, Ref} = verx_client:start([{transport, Transport}]),
-    ok = case VM of
-        kvm -> verx:open(Ref);
-        lxc -> verx:open(Ref, [<<"lxc:///">>, 0])
-    end,
-    {ok, Domain} = verx_test_lib:create(Ref, VM),
-    {Ref, Domain}.
+%%
+%% Utilities
+%%
+getenv(Var, Default) when is_list(Var), is_integer(Default) ->
+    case os:getenv(Var) of
+        false -> Default;
+        N -> list_to_integer(N)
+    end.
 
-%% KVM
-create(Ref, kvm) ->
-    Path = filename:join([
-            filename:dirname(code:which(vert)),
-            "..",
-            "priv",
-            "example.xml"
-            ]),
-
-    {ok, XML} = file:read_file(Path),
-
-    {ok, [Domain]} = verx:domain_define_xml(Ref, [XML]),
-    ok = verx:domain_create(Ref, [Domain]),
-    {ok, Domain};
-
-%% LXC
-create(Ref, lxc) ->
-    Name = "test-" ++ integer_to_list(erlang:phash2(Ref)),
-
-    <<Bytes:3/bytes, _/binary>> = erlang:md5(Name),
-    Macaddr = "52:54:00:" ++ string:join([ httpd_util:integer_to_hexlist(N)
-        || <<N:8>> <= Bytes ], ":"),
-
-    XML = template(Name, Macaddr),
-
-    {ok, [Domain]} = verx:domain_define_xml(Ref, [XML]),
-    verx:domain_create(Ref, [Domain]),
-
-    {ok, Domain}.
-
-template(Name, Macaddr) ->
-"<domain type='lxc'>
-    <name>" ++ Name ++ "</name>
-    <memory>102400</memory>
-    <os>
-        <type>exe</type>
-        <init>/bin/sh</init>
-    </os>
-    <devices>
-        <console type='pty'/>
-            <interface type='bridge'>
-                <mac address='" ++ Macaddr ++ "'/>
-                <source bridge='br0'/>
-            </interface>
-    </devices>
-</domain>".
+is_listening(Port) ->
+    case gen_tcp:connect("localhost", Port, [binary, {active,false}]) of
+        {ok, S} ->
+            ok = gen_tcp:close(S),
+            true;
+        _ ->
+            false
+    end.

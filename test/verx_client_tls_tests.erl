@@ -28,7 +28,7 @@
 %% LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 %% ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 %% POSSIBILITY OF SUCH DAMAGE.
--module(verx_client_unix_tests).
+-module(verx_client_tls_tests).
 
 -compile(export_all).
 
@@ -36,14 +36,20 @@
 -include("verx.hrl").
 
 transport_test_() ->
-    {setup,
-        fun start/0,
-        fun stop/1,
-        fun(State) -> verx_test_lib:run(State, verx_client_unix) end
-    }.
+    Port = verx_test_lib:getenv("VERX_TEST_TRANSPORT_TLS", 16514),
+    case verx_test_lib:is_listening(Port) of
+        true ->
+            {setup,
+                fun start/0,
+                fun stop/1,
+                fun(State) -> verx_test_lib:run(State, verx_client_tls) end
+            };
+        false ->
+            []
+    end.
 
 start() ->
-    verx_test_lib:start(verx_client_unix).
+    verx_test_lib:start(verx_client_tls).
 
 stop({Ref, Domain}) ->
     verx_test_lib:destroy(Ref, Domain).
