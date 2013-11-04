@@ -35,16 +35,19 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("verx.hrl").
 
+-define(CLIENTCERT, "/etc/pki/libvirt/clientcert.pem").
+
 transport_test_() ->
     Port = verx_test_lib:getenv("VERX_TEST_TRANSPORT_TLS", 16514),
-    case verx_test_lib:is_listening(Port) of
-        true ->
+    Exists = ok =:= element(1, file:read_file_info(?CLIENTCERT)),
+    case {Exists, verx_test_lib:is_listening(Port)} of
+        {true, true} ->
             {setup,
                 fun start/0,
                 fun stop/1,
                 fun verx_test_lib:run/1
             };
-        false ->
+        _ ->
             []
     end.
 
