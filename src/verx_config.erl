@@ -57,18 +57,18 @@ to_xml(Cfg) when is_tuple(Cfg) ->
     ).
 
 set(Key, Val) when is_atom(Key) ->
-    {Key, maybe_iolist(Val)};
+    {Key, maybe_list(Val)};
 set({Key, Attr}, Val) ->
-    {Key, Attr, maybe_iolist(Val)};
+    {Key, Attr, maybe_list(Val)};
 set(Keys, Val) when is_list(Keys) ->
     set_1(Keys, Val).
 
 set_1(Keys, Val) ->
     {Node, Rest} = case lists:reverse(Keys) of
         [{K,A}|T] ->
-            {{K,A,maybe_iolist(Val)}, T};
+            {{K,A,maybe_list(Val)}, T};
         [H|T] ->
-            {{H,maybe_iolist(Val)}, T}
+            {{H,maybe_list(Val)}, T}
     end,
     set_2(Rest, Node).
 
@@ -109,6 +109,6 @@ append_opt({Key, Val}, Options) ->
             set_opt({Key, Val ++ OVal}, Options)
     end.
 
-maybe_iolist([C|_] = N) when is_integer(C) -> [N];
-maybe_iolist(N) when is_list(N) -> N;
-maybe_iolist(N) -> [N].
+maybe_list([C|_] = N) when is_integer(C) -> [N];
+maybe_list(N) when is_list(N) -> N;
+maybe_list(N) -> [N].
