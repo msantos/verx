@@ -82,11 +82,11 @@ destroy(Ref, Domain)  ->
 
 num_of_defined_domains({Ref, _Domain}) ->
     {ok, [NumDef]} = verx:num_of_defined_domains(Ref),
-    ?_assert(is_integer(NumDef)).
+    ?_assertEqual(true, is_integer(NumDef)).
 
 num_of_domains({Ref, _Domain}) ->
     {ok, [NumRun]} = verx:num_of_domains(Ref),
-    ?_assert(NumRun > 0).
+    ?_assertEqual(true, NumRun > 0).
 
 list_defined_domains({Ref, _Domain}) ->
     {ok, [NumDef]} = verx:num_of_defined_domains(Ref),
@@ -117,7 +117,7 @@ lookup({Ref, _Domain}, Name) ->
 screenshot({Ref, Domain}) ->
     {ok, [<<"image/x-portable-pixmap">>]} = verx:domain_screenshot(Ref, [Domain,0,0]),
     {ok, Buf} = verx_client:recvall(Ref),
-    ?_assert(iolist_size(Buf) > 0).
+    ?_assertEqual(true, iolist_size(Buf) > 0).
 
 node_get_info({Ref, _Domain}) ->
     N = verx:node_get_info(Ref),
