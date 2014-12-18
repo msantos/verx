@@ -1,4 +1,4 @@
-%% Copyright (c) 2011-2013, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2011-2014, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,6 @@
 
 -include_lib("kernel/include/inet.hrl").
 -include("verx.hrl").
--include("verx_client.hrl").
 
 -export([start_link/0, start_link/1]).
 -export([start/0, start/1, stop/1]).
@@ -50,7 +49,7 @@
     getserial/1
     ]).
 -export([
-    stream/2,
+    stream/1,
     resolv/1, resolv/2,
     reply_to_caller/2
     ]).
@@ -174,66 +173,24 @@ getserial(Ref) when is_pid(Ref) ->
 %%-------------------------------------------------------------------------
 
 % Parse a stream of bytes into remote protocol messages
-%
-% Must be able to read the 4 byte length header or will
-% crash.
+stream(Data) ->
+    stream(Data, []).
 
-stream(Data, Buf) ->
-    stream(Data, Buf, []).
+stream(Data, Acc) ->
+    case message(Data) of
+        {<<>>, Rest} ->
+            {lists:reverse(Acc), Rest};
+        {Bin, Rest} ->
+            stream(Rest, [Bin|Acc])
+    end.
 
-% Complete message
-stream(<<?UINT32(Len), Data/binary>>, #verx_buf{
-                len = 0,
-                buflen = 0,
-                buf = []
-                }, Acc)
-        when Len =:= byte_size(Data) + ?REMOTE_MESSAGE_HEADER_XDR_LEN ->
-    {lists:reverse([Data|Acc]), #verx_buf{}};
-
-% Length followed by fragmented message
-stream(<<?UINT32(Len), Data/binary>>, #verx_buf{
-                len = 0,
-                buflen = 0,
-                buf = []
-                }, Acc) ->
-    {lists:reverse(Acc), #verx_buf{
-            len = Len,
-            buflen = byte_size(Data),
-            buf = [Data]
-            }};
-
-% Frag completes the message
-stream(Data, #verx_buf{
-                len = Len,
-                buflen = BufLen,
-                buf = Buf
-                }, Acc)
-        when Len =:= byte_size(Data) + BufLen + ?REMOTE_MESSAGE_HEADER_XDR_LEN ->
-    Bin = iolist_to_binary([lists:reverse(Buf), Data]),
-    {lists:reverse([Bin|Acc]), #verx_buf{}};
-
-% Frag + new message
-stream(Data, #verx_buf{
-                len = Len,
-                buflen = BufLen,
-                buf = Buf
-                }, Acc)
-        when Len < byte_size(Data) + BufLen + ?REMOTE_MESSAGE_HEADER_XDR_LEN ->
-    MLen = Len - 4,
-    <<Bin:MLen/bytes, Rest/binary>> = iolist_to_binary([lists:reverse(Buf), Data]),
-    stream(Rest, #verx_buf{}, [Bin|Acc]);
-
-% More frag
-stream(Data, #verx_buf{
-                len = Len,
-                buflen = BufLen,
-                buf = Buf
-                }, Acc) ->
-    {lists:reverse(Acc), #verx_buf{
-            len = Len,
-            buflen = BufLen + iolist_size(Data),
-            buf = [Data|Buf]
-            }}.
+% 4 byte length header, includes the size of the length header
+message(<<?UINT32(Len), Data/binary>> = Bin) when Len =< byte_size(Bin) ->
+    Size = Len - 4,
+    <<Msg:Size/bytes, Rest/binary>> = Data,
+    {Msg, Rest};
+message(Data) ->
+    {<<>>, Data}.
 
 resolv(Host) ->
     resolv(Host, inet6).

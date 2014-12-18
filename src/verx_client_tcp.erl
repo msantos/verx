@@ -32,7 +32,6 @@
 -behaviour(gen_server).
 
 -include("verx.hrl").
--include("verx_client.hrl").
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
         terminate/2, code_change/3]).
@@ -42,7 +41,7 @@
         s,                  % socket
         proc,               % last called procedure
         serial = -1,        % serial number
-        buf = #verx_buf{}
+        buf = <<>>
         }).
 
 
@@ -134,7 +133,7 @@ handle_info({tcp, Socket, Data},
                    pid = Pid,
                    buf = Buf} = State) ->
     inet:setopts(Socket, [{active, once}]),
-    {Msgs, Rest} = verx_client:stream(Data, Buf),
+    {Msgs, Rest} = verx_client:stream(<<Buf/binary, Data/binary>>),
     [ verx_client:reply_to_caller(Pid, Msg) || Msg <- Msgs ],
     {noreply, State#state{buf = Rest}};
 
