@@ -1,4 +1,4 @@
-%% Copyright (c) 2011-2013, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2011-2014, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -162,7 +162,7 @@ decode_payload(Fun, Payload) ->
 %%% RPC protocol
 %%-------------------------------------------------------------------------
 
-%% Remote protocol essage header
+%% Remote protocol message header
 header(#remote_message_header{
         prog = Prog,
         vers = Vers,
