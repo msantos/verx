@@ -27,7 +27,7 @@ For the remote support documentation:
 <http://libvirt.org/remote.html>
 
 The version of remote\_protocol.x used was taken from libvirt master
-(around v1.0.1, SHA commit 4ecb723b9ef8b206a228cf5156418f7faabc47eb).
+(around v1.2.11-72-g7c6dbf3, SHA commit ee3dc4f19b80fc1c69ba3a454112f54a17d3d130).
 
 ## HOW TO BUILD IT
 
@@ -101,7 +101,7 @@ See <http://libvirt.org/html/libvirt-libvirt.html>
     verx:Call(Ref) -> ok | {ok, Payload} | {error, Error}
     verx:Call(Ref, Arg) -> ok | {ok, Payload} | {error, Error}
 
-        Types   Call = [open, close, list_domain, ...]
+        Types   Call = [connect_open, connect_close, connect_list_domain, ...]
                 Ref = verx_transport()
                 Arg = [remote_protocol_args()]
                 Payload = [remote_protocol_ret()]
@@ -198,17 +198,17 @@ See <http://libvirt.org/html/libvirt-libvirt.html>
 
     % libvirt remote procotol open message
     % by default to qemu:///system
-    ok = verx:open(Ref),
+    ok = verx:connect_open(Ref),
 
     % send a close message
-    ok = verx:close(Ref),
+    ok = verx:connect_close(Ref),
 
     % send a remote protocol open message
     %  connecting to lxc containers
-    ok = verx:open(Ref, ["lxc:///", 0]),
+    ok = verx:connect_open(Ref, ["lxc:///", 0]),
 
     % close and stop the transport
-    ok = verx:close(Ref),
+    ok = verx:connect_close(Ref),
     ok = verx_client:stop(Ref).
 
     % open a TLS connection on the default port
@@ -235,7 +235,7 @@ See <http://libvirt.org/html/libvirt-libvirt.html>
         {ok, Ref} = verx_client:start(),
 
         % libvirt remote procotol open message
-        ok = verx:open(Ref),
+        ok = verx:connect_open(Ref),
 
         {ok, XML} = file:read_file(Path),
 
@@ -245,11 +245,11 @@ See <http://libvirt.org/html/libvirt-libvirt.html>
         % Start the VM
         ok = verx:domain_create(Ref, [Domain]),
 
-        {ok, [Active] = verx:num_of_domains(Ref),
+        {ok, [Active] = verx:connect_num_of_domains(Ref),
         io:format("Active Domains: ~p~n", [Active]),
 
         % Send a protocol close message
-        ok = verx:close(R),
+        ok = verx:connect_close(R),
 
         % Close the socket
         ok = verx_client:stop(R),
@@ -263,14 +263,14 @@ To list the VMs:
 
     ls() ->
         {ok, Ref} = verx_client:start(),
-        ok = verx:open(Ref),
+        ok = verx:connect_open(Ref),
 
-        {ok, [NumDef]} = verx:num_of_defined_domains(Ref),
+        {ok, [NumDef]} = verx:connect_num_of_defined_domains(Ref),
 
-        {ok, [NumRun]} = verx:num_of_domains(Ref),
+        {ok, [NumRun]} = verx:connect_num_of_domains(Ref),
 
-        {ok, [Shutoff]} = verx:list_defined_domains(Ref, [NumDef]),
-        {ok, [Running]} = verx:list_domains(Ref, [NumRun]),
+        {ok, [Shutoff]} = verx:connect_list_defined_domains(Ref, [NumDef]),
+        {ok, [Running]} = verx:connect_list_domains(Ref, [NumRun]),
 
         {ok, [{running, info(Ref, Running)},
                  {shutoff, info(Ref, Shutoff)}]}.
@@ -314,10 +314,10 @@ manipulate a running domain. The example was taken from:
 
     start() ->
         {ok, Ref} = verx_client:start(),
-        ok = verx:open(Ref),
+        ok = verx:connect_open(Ref),
 
-        {ok, [Num]} = verx:num_of_domains(Ref),
-        {ok, [Ids]} = verx:list_domains(Ref, [Num]),
+        {ok, [Num]} = verx:connect_num_of_domains(Ref),
+        {ok, [Ids]} = verx:connect_list_domains(Ref, [Num]),
 
         [ states(Ref, Id) || Id <- Ids ],
         ok.
@@ -361,7 +361,7 @@ similar to the example in the Ruby libvirt documentation
 
     start() ->
         {ok, Ref} = verx_client:start(),
-        ok = verx:open(Ref),
+        ok = verx:connect_open(Ref),
 
         [ begin
                 Reply = case Proc of
@@ -372,17 +372,17 @@ similar to the example in the Ruby libvirt documentation
           end || Proc <- [
                     node_get_info,
                     {node_get_cells_free_memory, [0, 100]},
-                    get_version,
-                    get_lib_version,
-                    get_hostname,
-                    get_uri,
+                    connect_get_version,
+                    connect_get_lib_version,
+                    connect_get_hostname,
+                    connect_get_uri,
                     node_get_free_memory,
                     node_get_security_model,
-                    is_secure,
-                    get_capabilities
+                    connect_is_secure,
+                    connect_get_capabilities
                     ] ],
 
-        ok = verx:close(Ref),
+        ok = verx:connect_close(Ref),
         verx_client:stop(Ref).
 
     result(Call, {ok, N}) ->
@@ -399,7 +399,7 @@ The VM system console can be accessed using any of the transports.
     {ok,<0.43.0>}
 
     % Open a remote protocol session to the Linux containers hypervisor
-    2> verx:open(Ref, ["lxc:///", 0]).
+    2> verx:connect_open(Ref, ["lxc:///", 0]).
     ok
 
     % Get a domain reference
@@ -438,7 +438,7 @@ the VM console:
         host(list_to_binary(Name));
     host(Name) when is_binary(Name) ->
         {ok, Ref} = verx_client:start(),
-        ok = verx:open(Ref),
+        ok = verx:connect_open(Ref),
 
         {ok, [Domain]} = verx:domain_lookup_by_name(Ref, [Name]),
 
@@ -469,7 +469,7 @@ bridge (br0).
 
     start(Prefix, Num) ->
         {ok, Ref} = verx_client:start(),
-        ok = verx:open(Ref, ["lxc:///", 0]),
+        ok = verx:connect_open(Ref, ["lxc:///", 0]),
         start(Ref, Prefix, Num).
 
     start(_Ref, _Prefix, 0) ->

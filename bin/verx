@@ -28,7 +28,7 @@ call(["autostart", Name | Arg]) ->
 call(["capabilities" | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
-    rp(verx:get_capabilities(Ref));
+    rp(verx:connect_get_capabilities(Ref));
 
 call(["console", Name | Arg]) ->
     Opt = getopt(Arg),
@@ -75,13 +75,13 @@ call(["list" | Arg]) ->
     {ok, Ref} = connect(Opt),
     All = proplists:get_value("all", Opt, false),
 
-    {ok, [NumRun]} = verx:num_of_domains(Ref),
-    {ok, [Running]} = verx:list_domains(Ref, [NumRun]),
+    {ok, [NumRun]} = verx:connect_num_of_domains(Ref),
+    {ok, [Running]} = verx:connect_list_domains(Ref, [NumRun]),
 
     N = case All of
         true ->
-            {ok, [NumDef]} = verx:num_of_defined_domains(Ref),
-            {ok, [Shutoff]} = verx:list_defined_domains(Ref, [NumDef]),
+            {ok, [NumDef]} = verx:connect_num_of_defined_domains(Ref),
+            {ok, [Shutoff]} = verx:connect_list_defined_domains(Ref, [NumDef]),
             [{shutoff, domains(Ref, Shutoff)}];
         false ->
             []
@@ -162,9 +162,9 @@ call(["version" | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
 
-    {ok, [Type]} = verx:get_type(Ref),
-    {ok, [Version]} = verx:get_version(Ref),
-    {ok, [Lib]} = verx:get_lib_version(Ref),
+    {ok, [Type]} = verx:connect_get_type(Ref),
+    {ok, [Version]} = verx:connect_get_version(Ref),
+    {ok, [Lib]} = verx:connect_get_lib_version(Ref),
 
     rp({ok, [{type, Type},
              {version, version(Version)},
@@ -174,8 +174,8 @@ call(["pool-list" | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
 
-    {ok, [Num]} = verx:num_of_storage_pools(Ref),
-    {ok, [Res]} = verx:list_storage_pools(Ref, [Num]),
+    {ok, [Num]} = verx:connect_num_of_storage_pools(Ref),
+    {ok, [Res]} = verx:connect_list_storage_pools(Ref, [Num]),
 
     rp({ok, [ begin
         {ok, [N]} = lookup(Ref, {pool, R}),
@@ -265,8 +265,8 @@ call(["net-list" | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
 
-    {ok, [Num]} = verx:num_of_networks(Ref),
-    {ok, [List]} = verx:list_networks(Ref, [Num]),
+    {ok, [Num]} = verx:connect_num_of_networks(Ref),
+    {ok, [List]} = verx:connect_list_networks(Ref, [Num]),
 
     rp({ok, [ begin
                 {ok, [Res]} = lookup(Ref, {net, Name}),
@@ -297,8 +297,8 @@ call(["nwfilter-dumpxml", Name | Arg]) ->
 call(["nwfilter-list" | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
-    {ok, [Num]} = verx:num_of_nwfilters(Ref),
-    rp(verx:list_nwfilters(Ref, [Num]));
+    {ok, [Num]} = verx:connect_num_of_nwfilters(Ref),
+    rp(verx:connect_list_nwfilters(Ref, [Num]));
 
 call(["nwfilter-undefine", Name | Arg]) ->
     Opt = getopt(Arg),
@@ -387,7 +387,7 @@ connect(Opt0) ->
             {key, Key},
             {depth, Depth}
             ]),
-    ok = verx:open(Ref, [URI, 0]),
+    ok = verx:connect_open(Ref, [URI, 0]),
     {ok, Ref}.
 
 transport(tcp) -> verx_client_tcp;

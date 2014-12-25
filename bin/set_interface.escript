@@ -30,7 +30,7 @@ send(Host, Cmd) ->
 
 console(Host) ->
     {ok, Ref} = verx_client:start(),
-    ok = verx:open(Ref),
+    ok = verx:connect_open(Ref),
     {ok, [Domain]} = verx:lookup(Ref, {domain, Host}),
     ok = verx:domain_open_console(Ref, [Domain, void, 0]),
     {ok, Ref}.

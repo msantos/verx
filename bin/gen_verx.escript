@@ -150,21 +150,40 @@ call_arity(Proc, Exports) ->
     proplists:get_value(Fun, Exports, 0).
 
 static_exports() ->
-    [{open, 1},
+    [{connect_open, 1}, {open, 1}, {open, 2},
+     {close, 1},
      {lookup, 2}].
 
 static() ->
     [ static({Fun, Arity}) || {Fun, Arity} <- static_exports() ].
 
-static({open, 1}) ->
+static({connect_open, 1}) ->
 "
 % Send a remote protocol open message
 %     <<>> : name
 %     0 : flags
-% See: remote_protocol_xdr:enc_remote_open_args/1
+% See: remote_protocol_xdr:enc_remote_connect_open_args/1
+connect_open(Ref) ->
+    connect_open(Ref, [<<>>, 0]).
+";
 
+static({open, 1}) ->
+"
+% For backwards compatibility, use connect_open/1,2.
 open(Ref) ->
-    open(Ref, [<<>>, 0]).
+    connect_open(Ref, [<<>>, 0]).
+";
+
+static({open, 2}) ->
+"
+open(Ref, Arg) ->
+    connect_open(Ref, Arg).
+";
+
+static({close, 1}) ->
+"
+close(Ref) ->
+    connect_close(Ref).
 ";
 
 static({lookup, 2}) ->

@@ -46,7 +46,7 @@ args_open_encode_decode() ->
     % Use <<>> instead "" so the decode will match up
     Args = [<<>>, 0],
 
-    {Header, Payload} = verx_rpc:call('REMOTE_PROC_OPEN', Args),
+    {Header, Payload} = verx_rpc:call('REMOTE_PROC_CONNECT_OPEN', Args),
     Msg = verx_rpc:encode({Header, Payload}),
 
     ?_assertEqual({Header, Args}, verx_rpc:decode(Msg)).

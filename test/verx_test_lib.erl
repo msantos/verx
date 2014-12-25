@@ -65,7 +65,7 @@ run(State) ->
 %%
 start(Transport) ->
     {ok, Ref} = verx_client:start([{transport, Transport}]),
-    ok = verx:open(Ref, [<<"test:///default">>, 0]),
+    ok = verx:connect_open(Ref, [<<"test:///default">>, 0]),
     {ok, [Domain]} = verx:lookup(Ref, {domain, <<"test">>}),
     {Ref, Domain}.
 
@@ -81,21 +81,21 @@ destroy(Ref, Domain)  ->
 %%
 
 num_of_defined_domains({Ref, _Domain}) ->
-    {ok, [NumDef]} = verx:num_of_defined_domains(Ref),
+    {ok, [NumDef]} = verx:connect_num_of_defined_domains(Ref),
     ?_assertEqual(true, is_integer(NumDef)).
 
 num_of_domains({Ref, _Domain}) ->
-    {ok, [NumRun]} = verx:num_of_domains(Ref),
+    {ok, [NumRun]} = verx:connect_num_of_domains(Ref),
     ?_assertEqual(true, NumRun > 0).
 
 list_defined_domains({Ref, _Domain}) ->
-    {ok, [NumDef]} = verx:num_of_defined_domains(Ref),
-    Shutoff = verx:list_defined_domains(Ref, [NumDef]),
+    {ok, [NumDef]} = verx:connect_num_of_defined_domains(Ref),
+    Shutoff = verx:connect_list_defined_domains(Ref, [NumDef]),
     ?_assertMatch({ok, _}, Shutoff).
 
 list_domains({Ref, _Domain}) ->
-    {ok, [NumRun]} = verx:num_of_domains(Ref),
-    Running = verx:list_domains(Ref, [NumRun]),
+    {ok, [NumRun]} = verx:connect_num_of_domains(Ref),
+    Running = verx:connect_list_domains(Ref, [NumRun]),
     ?_assertMatch({ok, _}, Running).
 
 domain_suspend({Ref, Domain}) ->
@@ -128,19 +128,19 @@ node_get_cells_free_memory({Ref, _Domain}) ->
     ?_assertMatch({ok, _}, N).
 
 get_version({Ref, _Domain}) ->
-    N = verx:get_version(Ref),
+    N = verx:connect_get_version(Ref),
     ?_assertMatch({ok, _}, N).
 
 get_lib_version({Ref, _Domain}) ->
-    N = verx:get_lib_version(Ref),
+    N = verx:connect_get_lib_version(Ref),
     ?_assertMatch({ok, _}, N).
 
 get_hostname({Ref, _Domain}) ->
-    N = verx:get_hostname(Ref),
+    N = verx:connect_get_hostname(Ref),
     ?_assertMatch({ok, _}, N).
 
 get_uri({Ref, _Domain}) ->
-    N = verx:get_uri(Ref),
+    N = verx:connect_get_uri(Ref),
     ?_assertMatch({ok, _}, N).
 
 node_get_free_memory({Ref, _Domain}) ->
@@ -152,11 +152,11 @@ node_get_security_model({Ref, _Domain}) ->
     ?_assertMatch({ok, _}, N).
 
 is_secure({Ref, _Domain}) ->
-    N = verx:is_secure(Ref),
+    N = verx:connect_is_secure(Ref),
     ?_assertMatch({ok, _}, N).
 
 get_capabilities({Ref, _Domain}) ->
-    N = verx:is_secure(Ref),
+    N = verx:connect_is_secure(Ref),
     ?_assertMatch({ok, _}, N).
 
 %%
