@@ -34,10 +34,10 @@
 -define(LIBVIRT_TCP_PORT, 16509).
 -define(LIBVIRT_TLS_PORT, 16514).
 
--define(UINT32(N), N:4/unsigned-integer-unit:8).
--define(UINT64(N), N:8/unsigned-integer-unit:8).
--define(INT32(N), N:4/signed-integer-unit:8).
--define(INT64(N), N:8/signed-integer-unit:8).
+-define(UINT32(N), (N):4/unsigned-integer-unit:8).
+-define(UINT64(N), (N):8/unsigned-integer-unit:8).
+-define(INT32(N), (N):4/signed-integer-unit:8).
+-define(INT64(N), (N):8/signed-integer-unit:8).
 
 -define(REMOTE_MESSAGE_HEADER_MAX, 24).
 -define(REMOTE_MESSAGE_PAYLOAD_MAX, 262120).
