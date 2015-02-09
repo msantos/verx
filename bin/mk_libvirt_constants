@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Usage (if standing in verx root):
+# cat $LIBVIRT_PATH/include/libvirt/*.h | bin/mk_libvirt_constants \
+#     > include/libvirt_constants.hrl
+
+awk    'BEGIN { inenum = 0 }
+        {
+            if (/^[ \s]*typedef enum/) inenum = 1
+            if (/^}/) inenum = 0
+            if (inenum) {
+                if ($1 ~ /^VIR_/) {
+                    print $0
+                }
+            }
+        }' |
+# Remove the trailing comma that appears on most lines
+awk -F ',' '{print $1}' |
+# Only keep lines which are binding a value to a constant
+awk '/=/'|
+# Remove spaces
+awk '{ gsub (" ", "", $0); print}' |
+# Amd tabs
+awk '{ gsub ("\t", "", $0); print}' |
+# Translate << to binary shift left to make it valid erlang
+awk '{ gsub ("<<", " bsl ", $0); print}' |
+# Remove lines that just associates a new constant's value
+# with that of an existing
+awk '!/=VIR_/' |
+# Remove comments (TODO: Leaves a slash on some lines)
+awk '{ gsub ('/\*.*\*/', "", $0); print}' |
+# Remove the slash from the previous round
+# (TODO: Dangerous if libvirt starts adding division in constants)
+awk '{ gsub ("/", "", $0); print}' |
+# Prepend the erlang define macro syntax in the beginning of each line
+awk '{ gsub ("VIR_", "-define(VIR_", $0); print}' |
+# Change = to , to fit erlang define macro syntax
+awk '{ gsub ("=", ",", $0); print}' |
+# Add the erlang end of define syntax
+awk 'BEGIN{ORS=").\n"}1'
