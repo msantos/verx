@@ -1,5 +1,8 @@
 #!/usr/bin/awk -f
 
+# Usage: bin/mk_libvirt_constants /path/to/libvirt/include/libvirt/*.h | \
+#        sort | uniq > include/libvirt_constants.hrl
+
 BEGIN { inenum = 0 }
 
 function ensure_comma(str) {
@@ -13,6 +16,7 @@ function ensure_comma(str) {
 function strip(str) {
     gsub("^ *", "", str)
     gsub(" *$", "", str)
+    gsub("\t",  "", str)
     return str
 }
 
@@ -27,6 +31,7 @@ function term(str) {
         sub("<<", "bsl", str)
         return str
     }
+    return str
 }
 
 function define(name, val, comment) {
@@ -38,7 +43,7 @@ function define(name, val, comment) {
     if (/^}/) inenum = 0
 
     if (inenum && $1 ~ /^VIR_/) {
-        split(ensure_comma($0), a, "\=")
+        split(ensure_comma($0), a, "=")
         split(a[2], b, ",")
         if (!length(b[1])) next
         print define(a[1], b[1], b[2])
