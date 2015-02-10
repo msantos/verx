@@ -5,18 +5,25 @@
 
 BEGIN { inenum = 0 }
 
+function err(msg) {
+    print msg > "/dev/stderr"
+    exit 1
+}
+
 function ensure_comma(str) {
     if (str !~ /,/ && str ~ /\/\*/) {
         sub("\\/\\*", ", \\/\\*", str)
-        return str
     }
+    else if (str !~ /,/) {
+        sub("$", ",", str)
+    }
+
     return str
 }
 
 function strip(str) {
-    gsub("^ *", "", str)
-    gsub(" *$", "", str)
-    gsub("\t",  "", str)
+    sub("^\\s*", "", str)
+    sub("\\s*$", "", str)
     return str
 }
 
@@ -31,7 +38,8 @@ function term(str) {
         sub("<<", "bsl", str)
         return str
     }
-    return str
+
+    err("UNMATCHED TERM:|" str "|")
 }
 
 function define(name, val, comment) {
