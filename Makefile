@@ -12,6 +12,10 @@ all: deps compile
 compile: $(REBAR)
 	@$(REBAR) compile
 
+libvirt_constants:
+	if [ -z "$$VERX_LIBVIRT_INCLUDE" ]; then VERX_LIBVIRT_INCLUDE="priv/include"; fi; \
+	bash -c "set -o pipefail; bin/mk_libvirt_constants $$VERX_LIBVIRT_INCLUDE/*.h | sort | uniq > include/libvirt_constants.hrl"
+
 clean: $(REBAR)
 	@$(REBAR) clean
 
