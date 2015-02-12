@@ -5,20 +5,21 @@
 %%% the libvirt remote_protocol.x file
 %%%
 
+-include_lib("verx/include/libvirt_constants.hrl").
+
 % Values from libvirt.h
-% XXX These should be read from the header file.
 defines() ->
-    [{"VIR_SECURITY_MODEL_BUFLEN", 257},
-     {"VIR_SECURITY_LABEL_BUFLEN", 4097},
-     {"VIR_SECURITY_DOI_BUFLEN", 257},
-     {"VIR_UUID_BUFLEN", 16},
-     {"VIR_TYPED_PARAM_INT", 1},
-     {"VIR_TYPED_PARAM_UINT", 2},
-     {"VIR_TYPED_PARAM_LLONG", 3},
-     {"VIR_TYPED_PARAM_ULLONG", 4},
-     {"VIR_TYPED_PARAM_DOUBLE", 5},
-     {"VIR_TYPED_PARAM_BOOLEAN", 6},
-     {"VIR_TYPED_PARAM_STRING", 7}].
+    [{"VIR_SECURITY_MODEL_BUFLEN", ?VIR_SECURITY_MODEL_BUFLEN},
+     {"VIR_SECURITY_LABEL_BUFLEN", ?VIR_SECURITY_LABEL_BUFLEN},
+     {"VIR_SECURITY_DOI_BUFLEN", ?VIR_SECURITY_DOI_BUFLEN},
+     {"VIR_UUID_BUFLEN", ?VIR_UUID_BUFLEN},
+     {"VIR_TYPED_PARAM_INT", ?VIR_TYPED_PARAM_INT},
+     {"VIR_TYPED_PARAM_UINT", ?VIR_TYPED_PARAM_UINT},
+     {"VIR_TYPED_PARAM_LLONG", ?VIR_TYPED_PARAM_LLONG},
+     {"VIR_TYPED_PARAM_ULLONG", ?VIR_TYPED_PARAM_ULLONG},
+     {"VIR_TYPED_PARAM_DOUBLE", ?VIR_TYPED_PARAM_DOUBLE},
+     {"VIR_TYPED_PARAM_BOOLEAN", ?VIR_TYPED_PARAM_BOOLEAN},
+     {"VIR_TYPED_PARAM_STRING", ?VIR_TYPED_PARAM_STRING}].
 
 main([]) ->
     Src = "priv/remote_protocol.x",

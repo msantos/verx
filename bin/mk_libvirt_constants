@@ -38,6 +38,9 @@ function term(str) {
         sub("<<", "bsl", str)
         return str
     }
+    else if (str ~ /^[0-9+\(\)]+$/) {
+        return str
+    }
 
     err("UNMATCHED TERM:|" str "|")
 }
@@ -55,5 +58,14 @@ function define(name, val, comment) {
         split(a[2], b, ",")
         if (!length(b[1])) next
         print define(a[1], b[1], b[2])
+    }
+    else if (/^#define/ && $2 ~ /^VIR_/) {
+        name = $2
+        $1 = ""
+        $2 = ""
+        gsub("\\s", "", $0)
+        if ($0 ~ /^[0-9+\(\)]+$/) {
+            print define(name, $0, "")
+        }
     }
 }
