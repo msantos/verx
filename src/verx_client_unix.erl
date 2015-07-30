@@ -65,18 +65,19 @@ init([Pid, Opt]) ->
             Path/binary,                                        % socket path
             0:((PathMax-Len)*8)>>,
 
-    ok = procket:connect(Socket, Sun),
-
-    Port = erlang:open_port({fd, Socket, Socket}, [
-                stream,
-                binary
-                ]),
-
-    {ok, #state{
-            pid = Pid,
-            port = Port,
-            s = Socket
-            }}.
+    case procket:connect(Socket, Sun) of
+        ok -> Port = erlang:open_port({fd, Socket, Socket}, [
+                                       stream,
+                                       binary
+                                       ]),
+              {ok, #state{
+               pid = Pid,
+               port = Port,
+               s = Socket
+               }};
+        Error ->
+            {stop, Error}
+    end.
 
 
 handle_call({call, Proc, Arg}, _From, #state{
@@ -144,7 +145,7 @@ handle_info({Port, {data, Data}},
     {noreply, State#state{buf = Rest}};
 
 handle_info({'EXIT', Port, Reason}, #state{port = Port} = State) ->
-    {stop, {shutdown, Reason}, State};
+    {stop, shutdown, State};
 
 % WTF?
 handle_info(Info, State) ->
@@ -152,7 +153,12 @@ handle_info(Info, State) ->
     {noreply, State}.
 
 terminate(_Reason, #state{s = Socket, port = Port}) ->
-    erlang:port_close(Port),
+    try
+        erlang:port_close(Port),
+    catch
+        _:Error -> io:format("verx_client_unix.erl: Error closing port: ~p~n",
+                             [Error])
+    end,
     procket:close(Socket),
     ok.
 code_change(_OldVsn, State, _Extra) ->
