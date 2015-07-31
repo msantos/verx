@@ -573,4 +573,4 @@ Examples:
 
 * verx\_client\_tcp
     * gen\_server halts when receiving a tcp\_closed message, causes an
-      error if the caller does a verx\_client:close/1
+      error if the caller does a verx\_client:stop/1

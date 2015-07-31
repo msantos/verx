@@ -73,7 +73,8 @@ start_link(Arg) ->
     gen_server:start_link(Transport, [Self, Arg], []).
 
 stop(Ref) when is_pid(Ref) ->
-    gen_server:call(Ref, stop).
+    catch gen_server:call(Ref, stop),
+    ok.
 
 
 call(Ref, Proc) ->
