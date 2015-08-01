@@ -140,6 +140,9 @@ handle_info({tcp, Socket, Data},
 handle_info({tcp_closed, Socket}, #state{s = Socket} = State) ->
     {stop, {shutdown, tcp_closed}, State};
 
+handle_info({tcp_error, Socket, Reason}, #state{s = Socket} = State) ->
+    {stop, {shutdown, Reason}, State};
+
 % WTF?
 handle_info(Info, State) ->
     error_logger:error_report([{wtf, Info}]),

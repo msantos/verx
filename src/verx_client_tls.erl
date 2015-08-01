@@ -169,6 +169,9 @@ handle_info({ssl, Socket, Data},
 handle_info({ssl_closed, Socket}, #state{s = Socket} = State) ->
     {stop, {shutdown, ssl_closed}, State};
 
+handle_info({ssl_error, Socket, Reason}, #state{s = Socket} = State) ->
+    {stop, {shutdown, Reason}, State};
+
 % WTF?
 handle_info(Info, State) ->
     error_logger:error_report([{wtf, Info}]),
