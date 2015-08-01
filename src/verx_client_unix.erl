@@ -76,6 +76,7 @@ init([Pid, Opt]) ->
                s = Socket
                }};
         Error ->
+            procket:close(Socket),
             {stop, Error}
     end.
 
