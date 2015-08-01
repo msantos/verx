@@ -1,5 +1,5 @@
 {application, verx,
     [{description, "Erlang libvirt remote protocol"},
-    {vsn, "0.5.2"},
+    {vsn, "0.5.3"},
     {registered, []},
     {applications, [kernel, stdlib]}]}.

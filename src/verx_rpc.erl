@@ -1,4 +1,4 @@
-%% Copyright (c) 2011-2014, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2011-2015, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -70,10 +70,10 @@ reply(Proc, Arg) when is_atom(Proc) ->
 %%% Encode/decode RPC messages
 %%-------------------------------------------------------------------------
 
-% The packet if prefaced by the length of the packet:
+% The packet is prefaced by the length:
 %
 % 4 bytes : packet length (including the length)
-% 24 bytes : header (6 unsigned integers)
+% 24 bytes : header (6 unsigned 32-bit integers)
 % Length = 4 + 24 + iolist_size(CallArg),
 %
 % It is up to the transport layer to add the 4 byte length.

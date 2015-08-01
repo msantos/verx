@@ -570,7 +570,3 @@ Examples:
 
 * verx\_client\_tls
     * single byte received before packet (works if thrown away)
-
-* verx\_client\_tcp
-    * gen\_server halts when receiving a tcp\_closed message, causes an
-      error if the caller does a verx\_client:stop/1
