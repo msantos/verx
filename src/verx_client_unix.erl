@@ -144,7 +144,7 @@ handle_info({Port, {data, Data}},
     [ verx_client:reply_to_caller(Pid, Msg) || Msg <- Msgs ],
     {noreply, State#state{buf = Rest}};
 
-handle_info({'EXIT', Port, Reason}, #state{port = Port} = State) ->
+handle_info({'EXIT', Port, _Reason}, #state{port = Port} = State) ->
     {stop, shutdown, State};
 
 % WTF?
@@ -154,7 +154,7 @@ handle_info(Info, State) ->
 
 terminate(_Reason, #state{s = Socket, port = Port}) ->
     try
-        erlang:port_close(Port),
+        erlang:port_close(Port)
     catch
         _:Error -> io:format("verx_client_unix.erl: Error closing port: ~p~n",
                              [Error])
