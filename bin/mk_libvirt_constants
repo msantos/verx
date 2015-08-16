@@ -67,5 +67,15 @@ function define(name, val, comment) {
         if ($0 ~ /^[0-9+\(\)]+$/) {
             print define(name, $0, "")
         }
+    } else if (/^#\s+define/ && $3 ~ /^VIR_/) {
+        name = $3
+
+        $1 = ""
+        $2 = ""
+        $3 = ""
+        gsub("\\s", "", $0)
+        if ($0 ~ /^[0-9+\(\)]+$/) {
+            print define(name, $0, "")
+        }
     }
 }
