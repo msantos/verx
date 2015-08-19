@@ -25,7 +25,7 @@ deps: $(REBAR)
 test: $(REBAR) compile
 	@$(REBAR) xref eunit recursive=false
 
-.PHONY: test dialyzer typer clean distclean
+.PHONY: test dialyzer typer clean distclean tags
 
 $(DEPSOLVER_PLT):
 	@dialyzer --output_plt $(DEPSOLVER_PLT) --build_plt \
@@ -39,3 +39,7 @@ typer: $(DEPSOLVER_PLT)
 
 distclean: clean
 	@rm $(DEPSOLVER_PLT)
+
+tags:
+	find . -name "*.[he]rl" -print | etags -
+
