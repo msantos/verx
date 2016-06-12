@@ -3,11 +3,7 @@
 %%%
 %%% Generate the verx.erl file
 %%%
-main([]) ->
-    File = "verx.erl",
-    main([File]);
-
-main([File]) ->
+main(_) ->
     % load remote_protocol_xdr
     true = code:add_pathz(filename:dirname(escript:script_name())
             ++ "/../ebin"),
@@ -52,7 +48,7 @@ main([File]) ->
 
     Module = erl_syntax:attribute(
             erl_syntax:atom(module),
-            [erl_syntax:atom(filename:basename(File, ".erl"))]
+            [erl_syntax:atom("verx.erl")]
             ),
     Includes = includes(["verx.hrl"]),
 
@@ -119,8 +115,7 @@ main([File]) ->
 
     Code = re:replace(Code0, "%%__STATIC__%%", static()),
 
-%    io:format("~s~n", [Code]).
-    file:write_file(File, [Code]).
+    io:format("~s~n", [Code]).
 
 % List the supported libvirt remote protocol procedures
 calls() ->
