@@ -48,7 +48,7 @@ main(_) ->
 
     Module = erl_syntax:attribute(
             erl_syntax:atom(module),
-            [erl_syntax:atom("verx.erl")]
+            [erl_syntax:atom("verx")]
             ),
     Includes = includes(["verx.hrl"]),
 
