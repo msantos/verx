@@ -1,5 +1,5 @@
 #!/usr/bin/env escript
-%%! -pa ../verx
+%%! -pa _build/default/lib/verx/ebin
 
 %%%
 %%% Generate the remote_protocol_xdr.erl module from

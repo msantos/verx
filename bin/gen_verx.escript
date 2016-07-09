@@ -1,4 +1,5 @@
 #!/usr/bin/env escript
+%%! -pa _build/default/lib/verx/ebin
 
 %%%
 %%% Generate the verx.erl file
