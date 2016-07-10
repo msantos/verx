@@ -518,7 +518,7 @@ To create the remote\_protocol\_xdr.erl from a remote\_protocol.x file:
 
         make clean; make
 
-If there are any errors, read through `bin/gen_remote_protocol.escript`.
+If there are any errors, read through `bin/mk_remote_protocol.escript`.
 
 ## VERX CLIENT
 
