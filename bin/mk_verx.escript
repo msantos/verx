@@ -1,13 +1,18 @@
 #!/usr/bin/env escript
-%%! -pa _build/default/lib/verx/ebin
 
 %%%
 %%% Generate the verx.erl file
 %%%
 main(_) ->
     % load remote_protocol_xdr
-    true = code:add_pathz(filename:dirname(escript:script_name())
-            ++ "/../ebin"),
+    Path = os:getenv("REBAR_BUILD_DIR", filename:join(
+                                          filename:dirname(escript:script_name()),
+                                          "../_build/default"
+                                         )),
+
+    true = code:add_pathz(filename:join(Path, "lib/verx/ebin")),
+
+    {module, remote_protocol_xdr} = code:load_file(remote_protocol_xdr),
 
     {{Year,_,_},{_,_,_}} = calendar:universal_time(),
 
