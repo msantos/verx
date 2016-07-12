@@ -1,5 +1,4 @@
 #!/usr/bin/env escript
-%%! -pa _build/default/lib/verx/ebin
 
 %%%
 %%% Generate the remote_protocol_xdr.erl module from
@@ -37,13 +36,19 @@ main([Src0, Dst0]) ->
 
     case file_exists(Src) of
         true ->
-            code:add_paths([
-                Dir ++ "deps/erpcgen/ebin",
-                Dir ++ "../erpcgen/ebin"
-            ]),
+            Path = os:getenv("REBAR_BUILD_DIR", filename:join(
+                filename:dirname(escript:script_name()),
+                "../_build/default"
+                )),
+
+            true = code:add_pathz(filename:join(Path, "lib/erpcgen/ebin")),
 
             % modules will not be loaded without rehashing here
-            code:rehash(),
+            {module, erpcgen} = code:load_file(erpcgen),
+            {module, xdr_auth} = code:load_file(xdr_auth),
+            {module, xdrgen} = code:load_file(xdrgen),
+            {module, xdr_parse} = code:load_file(xdr_parse),
+            {module, xdr_scan} = code:load_file(xdr_scan),
 
             [ok, ok] = generate_xdr(Src, Dst),
             move_hrl(Dst ++ "/" ++ Hrl , Include ++ "/" ++ Hrl);
