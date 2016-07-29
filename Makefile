@@ -6,7 +6,7 @@ compile:
 	@$(REBAR) compile
 
 libvirt_constants:
-	bash -o pipefail -c "bin/mk_libvirt_constants $${VERX_LIBVIRT_INCLUDE-priv/include}/*.h | sort | uniq > include/libvirt_constants.hrl"
+	bin/mk_libvirt_constants $${VERX_LIBVIRT_INCLUDE-priv/include}/*.h | sort | uniq > include/libvirt_constants.hrl
 
 clean:
 	@$(REBAR) clean
