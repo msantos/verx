@@ -1,4 +1,4 @@
-%% Copyright (c) 2012-2015, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2012-2016, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -82,7 +82,7 @@ handle_call({call, Proc, Arg}, _From, #state{
         ok -> {ok, Serial};
         Error -> Error
     end,
-    inet:setopts(Socket, [{active, once}]),
+    ok = inet:setopts(Socket, [{active, once}]),
     {reply, Reply, State#state{proc = Proc, serial = Serial}};
 
 handle_call({send, Buf}, _From, #state{
@@ -97,7 +97,7 @@ handle_call({send, Buf}, _From, #state{
             status = <<?REMOTE_CONTINUE:32>>
             }, Buf}),
     Reply = send_rpc(Socket, Message),
-    inet:setopts(Socket, [{active, once}]),
+    ok = inet:setopts(Socket, [{active, once}]),
     {reply, Reply, State};
 
 handle_call(finish, _From, #state{
@@ -112,7 +112,7 @@ handle_call(finish, _From, #state{
             status = <<?REMOTE_OK:32>>
             }),
     Reply = send_rpc(Socket, Header),
-    inet:setopts(Socket, [{active, once}]),
+    ok = inet:setopts(Socket, [{active, once}]),
     {reply, Reply, State};
 
 handle_call(getserial, _From, #state{serial = Serial} = State) ->
@@ -132,7 +132,7 @@ handle_info({tcp, Socket, Data},
             #state{s = Socket,
                    pid = Pid,
                    buf = Buf} = State) ->
-    inet:setopts(Socket, [{active, once}]),
+    ok = inet:setopts(Socket, [{active, once}]),
     {Msgs, Rest} = verx_client:stream(<<Buf/binary, Data/binary>>),
     [ verx_client:reply_to_caller(Pid, Msg) || Msg <- Msgs ],
     {noreply, State#state{buf = Rest}};
