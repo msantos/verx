@@ -1,4 +1,6 @@
-REBAR := rebar3
+.PHONY: all compile libvirt_constants test dialyzer typer tags
+
+REBAR ?= rebar3
 
 all: compile
 
@@ -13,8 +15,6 @@ clean:
 
 test: compile
 	@$(REBAR) xref eunit recursive=false
-
-.PHONY: test dialyzer typer clean distclean tags
 
 dialyzer:
 	$(REBAR) dialyzer
