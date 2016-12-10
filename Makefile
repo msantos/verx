@@ -19,8 +19,11 @@ test: compile
 dialyzer:
 	$(REBAR) dialyzer
 
-typer: $(DEPSOLVER_PLT)
-	@typer --plt $(DEPSOLVER_PLT) -r ./src
-
+typer:
+	@typer \
+		-pa _build/default/lib/verx/ebin \
+		-I include \
+		--plt _build/default/*_plt \
+		-r ./src
 tags:
 	find . -name "*.[he]rl" -print | etags -
