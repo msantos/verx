@@ -27,7 +27,7 @@ For the remote support documentation:
 <http://libvirt.org/remote.html>
 
 The version of remote\_protocol.x used was taken from libvirt master
-at 1.2.18, SHA commit bcfdd8e836edcf64d4dff4d01f4b7903bfe76775).
+at 1.3.1 (commit 8fd68675e2b5eed5b2aae636544a0a80f9fc70e9).
 
 ## HOW TO BUILD IT
 
