@@ -5,6 +5,18 @@
 
 BEGIN { inenum = 0 }
 
+# https://www.gnu.org/software/gawk/manual/html_node/Join-Function.html
+function join(array, start, end, sep,    result, i) {
+    if (sep == "")
+       sep = " "
+    else if (sep == SUBSEP) # magic value
+       sep = ""
+    result = array[start]
+    for (i = start + 1; i <= end; i++)
+        result = result sep array[i]
+    return result
+}
+
 function err(msg) {
     print msg > "/dev/stderr"
     exit 1
@@ -27,26 +39,42 @@ function strip(str) {
     return str
 }
 
-function term(str) {
-    if (str ~ /^[0-9\-]+$/) {
-        return str
+function token(t) {
+    # #define ABC 1234
+    if (t ~ /^[0-9\-]+$/) {
+        return t
     }
-    else if (str ~ /^[A-Z0-9_]+$/) {
-        return "?" str
+    # #define ABC (1U << 31)
+    else if (t ~ /^\(*[-1-9]+U$/) {
+        sub("U", "", t)
+        return t
     }
-    else if (str ~ /<</) {
-        sub("<<", "bsl", str)
-        return str
+    # #define ABC XYZ
+    else if (t ~ /^[A-Z0-9_]+$/) {
+        return "?" t
     }
-    else if (str ~ /^[0-9+\(\)]+$/) {
-        return str
+    # #define ABC (1 << 31)
+    else if (t ~ /<</) {
+        return "bsl"
+    }
+    # #define ABC (1234)
+    else if (t ~ /^[0-9+\(\)]+$/) {
+        return t
     }
 
-    err("UNMATCHED TERM:|" str "|")
+    err("UNMATCHED TERM:|" t "|")
+}
+
+function term(str) {
+    n = split(strip(str), tok)
+    for (t in tok) {
+        tok[t] = token(tok[t])
+    }
+    return join(tok, 1, n)
 }
 
 function define(name, val, comment) {
-    return "-define(" strip(name) "," term(strip(val)) ")."
+    return "-define(" strip(name) "," term(val) ")."
 }
 
 {
@@ -61,13 +89,10 @@ function define(name, val, comment) {
         if (!length(b[1])) next
         print define(a[1], b[1], b[2])
     }
-    else if (/^#define/ && $2 ~ /^VIR_/) {
+    else if (/^#define/ && $2 ~ /^VIR_/ && $3 ~ /^[0-9+\(\)]+$/) {
         name = $2
         $1 = ""
         $2 = ""
-        gsub("\\s", "", $0)
-        if ($0 ~ /^[0-9+\(\)]+$/) {
-            print define(name, $0, "")
-        }
+        print define(name, $0, "")
     }
 }
