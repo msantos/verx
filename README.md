@@ -36,27 +36,11 @@ at 1.3.1 (commit 8fd68675e2b5eed5b2aae636544a0a80f9fc70e9).
 See _GENERATING THE REMOTE PROTOCOL MODULE_ to rebuild the XDR protocol
 parser.
 
-## CREATING A TEST VM
-
-If you don't have a VM ready to test, you can download a test image
-by running:
-
-    bin/get_image.escript
-
-The script will download an OpenWRT image and set up the configuration
-in priv/example.xml. By default, it will set up the VM to run under
-KVM using user mode networking.
-
-You can manually modify the configuration afterwards or set these
-environment variables before running the script:
-
-    VERX_QEMU_BIN : path to the qemu binary (default: /usr/bin/kvm)
-    VERX_BRIDGE_INTERFACE : bridge interface (default: user networking)
-
 ## TESTING EVERYTHING WORKS
 
-To quickly test everything works, try running `bin/verx`, an escript
-that provides a simple command line interface to the verx library.
+To quickly test everything works, the libvirtd test driver can be used
+with `bin/verx`, an escript that provides a simple command line interface
+to the verx library.
 
 You'll have to set up the ERL\_LIBS environment variable first, e.g.,
 if verx is checked out in ~/src:
@@ -67,15 +51,28 @@ Then run:
 
     bin/verx
 
-To create the example VM:
+To list the test VMs:
 
-    bin/verx create priv/example.xml
+    bin/verx list --uri test:///default
+
+To retrieve the test virtual machine configuration:
+
+    bin/verx dumpxml test --uri test:///default
+
+To create the example VM (a no-op with the test driver):
+
+    bin/verx create priv/example.xml --uri test:///default
 
 To see all the VMs (if you have TLS set up):
 
-    bin/verx list --all --transport verx_client_tls
+    bin/verx list --all --transport verx_client_tls --uri test:///default
 
-To connect to example VM's console using the Unix transport:
+To screenshot the test VM:
+
+    bin/verx screenshot test --uri test:///default
+
+The test driver will return an error if console access is requested. To
+connect to an actual VM's console using the Unix transport:
 
     bin/verx console localvm # control-C to exit
 
@@ -404,7 +401,7 @@ The VM system console can be accessed using any of the transports.
 
     % Get a domain reference
     3> {ok, [Domain]} = verx:domain_lookup_by_name(Ref, [<<"lxc-1">>]).
-    {ok,[{<<"lxc-3">>,
+    {ok,[{<<"lxc-1">>,
          <<150,162,91,134,54,66,203,130,29,224,244,242,121,45,5,118>>,
            19586}]}
 
