@@ -1,16 +1,12 @@
-[{<<"erpcgen">>,
-  {git,"git://github.com/msantos/erpcgen.git",
-       {ref,"fdf0ef701aa3b5f2da2f2431ef949158d06d9d0f"}},
-  0},
- {<<"procket">>,
-  {git,"git://github.com/msantos/procket.git",
-       {ref,"ffbb9b631829e2ddf3c7fb5113e9a4e726f032d7"}},
-  0},
- {<<"quickrand">>,
-  {git,"https://github.com/okeuday/quickrand.git",
-       {ref,"177b345e579101512371698569e57382a6411ce6"}},
-  1},
- {<<"uuid">>,
-  {git,"git://github.com/okeuday/uuid.git",
-       {ref,"4b705b22f5d095970558d904e43c4354bd0e0a7f"}},
-  0}].
+{"1.1.0",
+[{<<"erpcgen">>,{pkg,<<"erpcgen">>,<<"1.1.1">>},0},
+ {<<"procket">>,{pkg,<<"procket">>,<<"0.9.3">>},0},
+ {<<"quickrand">>,{pkg,<<"quickrand">>,<<"1.5.4">>},1},
+ {<<"uuid">>,{pkg,<<"uuid_erl">>,<<"1.5.4">>},0}]}.
+[
+{pkg_hash,[
+ {<<"erpcgen">>, <<"E88C82F859A82DA6F066BC8A8FE5CCB44402E7A52E82B71089ED84FD68A5C77D">>},
+ {<<"procket">>, <<"593E907645307BC854CE3532F3F9C07987D8DC9848180CD2EE408FD92B22CC1E">>},
+ {<<"quickrand">>, <<"47ADD4755CC5F209CBEFFD6F47C84061196CD7FAD99FD8FD12418EB0D06B939D">>},
+ {<<"uuid">>, <<"06240EFF3EAF013CC22274689B0C1FF6345645EE5D47A9E4ED7545EEB7698B23">>}]}
+].

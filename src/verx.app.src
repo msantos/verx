@@ -1,5 +1,12 @@
 {application, verx,
     [{description, "Erlang libvirt remote protocol"},
-    {vsn, "0.5.3"},
+    {vsn, "0.5.4"},
     {registered, []},
-    {applications, [kernel, stdlib]}]}.
+    {applications, [kernel, stdlib]},
+
+    {licenses, ["BSD-3"]},
+    {maintainers, ["Michael Santos"]},
+    {links, [
+        {"Github", "https://github.com/msantos/verx"}
+    ]}
+]}.
