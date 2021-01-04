@@ -1,4 +1,4 @@
-%% Copyright (c) 2013, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2013-2021, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 -compile(export_all).
 
 -include_lib("eunit/include/eunit.hrl").
+
 -include("verx.hrl").
 
 %%
@@ -42,22 +43,22 @@
 % Not all drivers support the same features
 run(State) ->
     {inorder, [
-            verx_test_lib:num_of_defined_domains(State),
-            verx_test_lib:num_of_domains(State),
-            verx_test_lib:list_defined_domains(State),
-            verx_test_lib:list_domains(State),
-            verx_test_lib:domain_suspend(State),
-            verx_test_lib:domain_resume(State),
-            verx_test_lib:domain_shutdown(State),
-            verx_test_lib:lookup(State, "test"),
-            verx_test_lib:node_get_info(State),
-            verx_test_lib:node_get_cells_free_memory(State),
-            verx_test_lib:get_version(State),
-            verx_test_lib:get_lib_version(State),
-            verx_test_lib:get_hostname(State),
-            verx_test_lib:get_uri(State),
-            verx_test_lib:is_secure(State),
-            verx_test_lib:get_capabilities(State)
+        verx_test_lib:num_of_defined_domains(State),
+        verx_test_lib:num_of_domains(State),
+        verx_test_lib:list_defined_domains(State),
+        verx_test_lib:list_domains(State),
+        verx_test_lib:domain_suspend(State),
+        verx_test_lib:domain_resume(State),
+        verx_test_lib:domain_shutdown(State),
+        verx_test_lib:lookup(State, "test"),
+        verx_test_lib:node_get_info(State),
+        verx_test_lib:node_get_cells_free_memory(State),
+        verx_test_lib:get_version(State),
+        verx_test_lib:get_lib_version(State),
+        verx_test_lib:get_hostname(State),
+        verx_test_lib:get_uri(State),
+        verx_test_lib:is_secure(State),
+        verx_test_lib:get_capabilities(State)
     ]}.
 
 %%
@@ -69,7 +70,7 @@ start(Transport) ->
     {ok, [Domain]} = verx:lookup(Ref, {domain, <<"test">>}),
     {Ref, Domain}.
 
-destroy(Ref, Domain)  ->
+destroy(Ref, Domain) ->
     ok = verx:domain_destroy(Ref, [Domain]),
     ok = verx:domain_undefine(Ref, [Domain]),
     verx:close(Ref),
@@ -115,7 +116,7 @@ lookup({Ref, _Domain}, Name) ->
     ?_assertMatch({ok, [{_, _, _}]}, N).
 
 screenshot({Ref, Domain}) ->
-    {ok, [<<"image/x-portable-pixmap">>]} = verx:domain_screenshot(Ref, [Domain,0,0]),
+    {ok, [<<"image/x-portable-pixmap">>]} = verx:domain_screenshot(Ref, [Domain, 0, 0]),
     {ok, Buf} = verx_client:recvall(Ref),
     ?_assertEqual(true, iolist_size(Buf) > 0).
 
@@ -124,7 +125,7 @@ node_get_info({Ref, _Domain}) ->
     ?_assertMatch({ok, _}, N).
 
 node_get_cells_free_memory({Ref, _Domain}) ->
-    N = verx:node_get_cells_free_memory(Ref, [0,100]),
+    N = verx:node_get_cells_free_memory(Ref, [0, 100]),
     ?_assertMatch({ok, _}, N).
 
 get_version({Ref, _Domain}) ->
@@ -169,7 +170,7 @@ getenv(Var, Default) when is_list(Var), is_integer(Default) ->
     end.
 
 is_listening(Port) ->
-    case gen_tcp:connect("localhost", Port, [binary, {active,false}]) of
+    case gen_tcp:connect("localhost", Port, [binary, {active, false}]) of
         {ok, S} ->
             ok = gen_tcp:close(S),
             true;

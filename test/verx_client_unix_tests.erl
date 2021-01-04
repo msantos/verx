@@ -1,4 +1,4 @@
-%% Copyright (c) 2012-2013, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2012-2021, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -33,14 +33,11 @@
 -compile(export_all).
 
 -include_lib("eunit/include/eunit.hrl").
+
 -include("verx.hrl").
 
 transport_test_() ->
-    {setup,
-        fun start/0,
-        fun stop/1,
-        fun verx_test_lib:run/1
-    }.
+    {setup, fun start/0, fun stop/1, fun verx_test_lib:run/1}.
 
 start() ->
     verx_test_lib:start(verx_client_unix).

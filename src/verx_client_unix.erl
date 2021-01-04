@@ -1,4 +1,4 @@
-%% Copyright (c) 2012-2015, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2012-2021, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -29,23 +29,34 @@
 %% ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 %% POSSIBILITY OF SUCH DAMAGE.
 -module(verx_client_unix).
+
 -behaviour(gen_server).
 
 -include_lib("procket/include/procket.hrl").
+
 -include("verx.hrl").
 
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-        terminate/2, code_change/3]).
+-export([
+    init/1,
+    handle_call/3,
+    handle_cast/2,
+    handle_info/2,
+    terminate/2,
+    code_change/3
+]).
 
 -record(state, {
-        pid,
-        s,                  % socket
-        port,               % Erlang port reference
-        proc,               % last called procedure
-        serial = -1,        % serial number
-        buf = <<>>
-        }).
-
+    pid,
+    % socket
+    s,
+    % Erlang port reference
+    port,
+    % last called procedure
+    proc,
+    % serial number
+    serial = -1,
+    buf = <<>>
+}).
 
 %%-------------------------------------------------------------------------
 %%% Callbacks
@@ -61,72 +72,89 @@ init([Pid, Opt]) ->
     PathMax = procket:unix_path_max(),
     Len = byte_size(Path),
 
-    Sun = <<(procket:sockaddr_common(?PF_LOCAL, Len))/binary,   % sun_family
-            Path/binary,                                        % socket path
-            0:((PathMax-Len)*8)>>,
+    % sun_family
+    Sun =
+        <<(procket:sockaddr_common(?PF_LOCAL, Len))/binary,
+            % socket path
+            Path/binary, 0:((PathMax - Len) * 8)>>,
 
     case procket:connect(Socket, Sun) of
-        ok -> Port = erlang:open_port({fd, Socket, Socket}, [
-                                       stream,
-                                       binary
-                                       ]),
-              {ok, #state{
-               pid = Pid,
-               port = Port,
-               s = Socket
-               }};
+        ok ->
+            Port = erlang:open_port({fd, Socket, Socket}, [
+                stream,
+                binary
+            ]),
+            {ok, #state{
+                pid = Pid,
+                port = Port,
+                s = Socket
+            }};
         Error ->
             procket:close(Socket),
             {stop, Error}
     end.
 
-
-handle_call({call, Proc, Arg}, _From, #state{
-                port = Port,
-                serial = Serial0
-                } = State) when is_list(Arg) ->
+handle_call(
+    {call, Proc, Arg},
+    _From,
+    #state{
+        port = Port,
+        serial = Serial0
+    } = State
+) when is_list(Arg) ->
     {Header, Call} = verx_rpc:call(Proc, Arg),
     Serial = Serial0 + 1,
-    Message = verx_rpc:encode({Header#remote_message_header{
-                    serial = <<Serial:32>>
-                    }, Call}),
-    Reply = case send_rpc(Port, Message) of
-        ok -> {ok, Serial};
-        Error -> Error
-    end,
+    Message = verx_rpc:encode(
+        {Header#remote_message_header{
+                serial = <<Serial:32>>
+            },
+            Call}
+    ),
+    Reply =
+        case send_rpc(Port, Message) of
+            ok -> {ok, Serial};
+            Error -> Error
+        end,
     {reply, Reply, State#state{proc = Proc, serial = Serial}};
-
-handle_call({send, Buf}, _From, #state{
-                port = Port,
-                proc = Proc,
-                serial = Serial
-                } = State) when is_binary(Buf) ->
-    Message = verx_rpc:encode({#remote_message_header{
-            proc = remote_protocol_xdr:enc_remote_procedure(Proc),
-            type = <<?REMOTE_STREAM:32>>,
-            serial = <<Serial:32>>,
-            status = <<?REMOTE_CONTINUE:32>>
-            }, Buf}),
+handle_call(
+    {send, Buf},
+    _From,
+    #state{
+        port = Port,
+        proc = Proc,
+        serial = Serial
+    } = State
+) when is_binary(Buf) ->
+    Message = verx_rpc:encode(
+        {#remote_message_header{
+                proc = remote_protocol_xdr:enc_remote_procedure(Proc),
+                type = <<?REMOTE_STREAM:32>>,
+                serial = <<Serial:32>>,
+                status = <<?REMOTE_CONTINUE:32>>
+            },
+            Buf}
+    ),
     Reply = send_rpc(Port, Message),
     {reply, Reply, State};
-
-handle_call(finish, _From, #state{
-                proc = Proc,
-                port = Port,
-                serial = Serial
-                } = State) ->
+handle_call(
+    finish,
+    _From,
+    #state{
+        proc = Proc,
+        port = Port,
+        serial = Serial
+    } = State
+) ->
     Header = verx_rpc:header(#remote_message_header{
-            proc = remote_protocol_xdr:enc_remote_procedure(Proc),
-            type = <<?REMOTE_STREAM:32>>,
-            serial = <<Serial:32>>,
-            status = <<?REMOTE_OK:32>>
-            }),
+        proc = remote_protocol_xdr:enc_remote_procedure(Proc),
+        type = <<?REMOTE_STREAM:32>>,
+        serial = <<Serial:32>>,
+        status = <<?REMOTE_OK:32>>
+    }),
     Reply = send_rpc(Port, Header),
     {reply, Reply, State};
-
 handle_call(getserial, _From, #state{serial = Serial} = State) ->
     {reply, Serial, State};
-
 handle_call(stop, _From, State) ->
     {stop, shutdown, ok, State}.
 
@@ -137,17 +165,19 @@ handle_cast(_Msg, State) ->
 %% Reply from libvirtd
 %%
 
-handle_info({Port, {data, Data}},
-            #state{port = Port,
-                   pid = Pid,
-                   buf = Buf} = State) ->
+handle_info(
+    {Port, {data, Data}},
+    #state{
+        port = Port,
+        pid = Pid,
+        buf = Buf
+    } = State
+) ->
     {Msgs, Rest} = verx_client:stream(<<Buf/binary, Data/binary>>),
-    [ verx_client:reply_to_caller(Pid, Msg) || Msg <- Msgs ],
+    [verx_client:reply_to_caller(Pid, Msg) || Msg <- Msgs],
     {noreply, State#state{buf = Rest}};
-
 handle_info({'EXIT', Port, _Reason}, #state{port = Port} = State) ->
     {stop, shutdown, State};
-
 % WTF?
 handle_info(Info, State) ->
     error_logger:error_report([{wtf, Info}]),
@@ -157,11 +187,15 @@ terminate(_Reason, #state{s = Socket, port = Port}) ->
     try
         erlang:port_close(Port)
     catch
-        _:Error -> io:format("verx_client_unix.erl: Error closing port: ~p~n",
-                             [Error])
+        _:Error ->
+            io:format(
+                "verx_client_unix.erl: Error closing port: ~p~n",
+                [Error]
+            )
     end,
     procket:close(Socket),
     ok.
+
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
@@ -178,7 +212,7 @@ send_rpc(Port, Buf) ->
     try erlang:port_command(Port, <<?UINT32(Len), Buf/binary>>) of
         true ->
             ok
-        catch
-            error:Error ->
-                {error, Error}
-        end.
+    catch
+        error:Error ->
+            {error, Error}
+    end.

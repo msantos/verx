@@ -1,4 +1,4 @@
-%% Copyright (c) 2017, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2017-2021, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -34,23 +34,28 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
--define(VIR_INCLUDE, "
-#define VIR_T1 123
-#define VIR_T2 1 << 31
-#define VIR_T3 (1U << 31)
-# define VIR_DOMAIN_SEND_KEY_MAX_KEYS  16
-#   define VIR_DEPRECATED __attribute__((__deprecated__))
-#   define VIR_EXPORT_VAR extern
-").
+-define(VIR_INCLUDE,
+    "\n"
+    "#define VIR_T1 123\n"
+    "#define VIR_T2 1 << 31\n"
+    "#define VIR_T3 (1U << 31)\n"
+    "# define VIR_DOMAIN_SEND_KEY_MAX_KEYS  16\n"
+    "#   define VIR_DEPRECATED __attribute__((__deprecated__))\n"
+    "#   define VIR_EXPORT_VAR extern\n"
+).
 
 -define(VIR_DEFINE,
-"-define(VIR_T1,123).
--define(VIR_T2,1 bsl 31).
--define(VIR_DOMAIN_SEND_KEY_MAX_KEYS,16).
-").
+    "-define(VIR_T1,123).\n"
+    "-define(VIR_T2,1 bsl 31).\n"
+    "-define(VIR_DOMAIN_SEND_KEY_MAX_KEYS,16).\n"
+).
 
 constants_test() ->
-    VIR_DEFINE = os:cmd(lists:concat([
-                "cat<<'EOF' | bin/mk_libvirt_constants", ?VIR_INCLUDE, "EOF"
-            ])),
+    VIR_DEFINE = os:cmd(
+        lists:concat([
+            "cat<<'EOF' | bin/mk_libvirt_constants",
+            ?VIR_INCLUDE,
+            "EOF"
+        ])
+    ),
     ?assertEqual(?VIR_DEFINE, VIR_DEFINE).

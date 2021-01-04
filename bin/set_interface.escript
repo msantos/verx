@@ -8,8 +8,10 @@
 main([]) ->
     main([["localvm"]]);
 main(Hosts) ->
-    true = code:add_pathz(filename:dirname(escript:script_name())
-            ++ "/../deps/procket/ebin"),
+    true = code:add_pathz(
+        filename:dirname(escript:script_name()) ++
+            "/../deps/procket/ebin"
+    ),
 
     Commands = [
         "uci batch <<-EOF",
@@ -20,11 +22,11 @@ main(Hosts) ->
         "commit network",
         "EOF"
     ],
-    [ send(Host, Commands) || Host <- Hosts ].
+    [send(Host, Commands) || Host <- Hosts].
 
 send(Host, Cmd) ->
     {ok, Ref} = console(Host),
-    ok = verx_client:send(Ref, [ list_to_binary([C, "\n"]) || C <- Cmd ]),
+    ok = verx_client:send(Ref, [list_to_binary([C, "\n"]) || C <- Cmd]),
     ok = verx:close(Ref),
     verx_client:stop(Ref).
 

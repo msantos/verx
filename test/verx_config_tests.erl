@@ -1,4 +1,4 @@
-%% Copyright (c) 2013, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2013-2021, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -52,17 +52,22 @@ name_test() ->
 
 interface_entry_test() ->
     Cfg0 = verx_config:init([{type, ["qemu"]}]),
-    Cfg = verx_config:append([devices, {interface, [{type, "bridge"}]}], [
+    Cfg = verx_config:append(
+        [devices, {interface, [{type, "bridge"}]}],
+        [
             {mac, [{address, ["00:11:22:33:44:55"]}], []},
             {source, [{bridge, "eth0"}], []}
-        ], Cfg0),
+        ],
+        Cfg0
+    ),
     XML = verx_config:to_xml(Cfg),
     ?assertEqual(
         "<domain type=\"qemu\"><devices>"
         "<interface type=\"bridge\"><mac address=\"00:11:22:33:44:55\"/>"
         "<source bridge=\"eth0\"/></interface>"
         "</devices></domain>",
-        XML).
+        XML
+    ).
 
 interface_list_test() ->
     Cfg0 = verx_config:init(),
@@ -88,11 +93,15 @@ interface_list_test() ->
 
 filesystem_entry_test() ->
     Cfg0 = verx_config:init(),
-    Cfg = verx_config:append([devices, {filesystem, [{type, "mount"}]}], [
+    Cfg = verx_config:append(
+        [devices, {filesystem, [{type, "mount"}]}],
+        [
             {source, [{dir, ["/bin"]}], []},
             {target, [{dir, ["/bin"]}], []},
             readonly
-        ], Cfg0),
+        ],
+        Cfg0
+    ),
     XML = verx_config:to_xml(Cfg),
     ?assertEqual(
         "<domain><devices>"

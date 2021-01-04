@@ -1,4 +1,4 @@
-%% Copyright (c) 2011-2015, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2011-2021, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,7 @@
 %% ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 %% POSSIBILITY OF SUCH DAMAGE.
 -module(verx_rpc).
+
 -include("verx.hrl").
 
 -export([
@@ -39,9 +40,9 @@
     decode/1,
     header/1,
 
-    field/2, status/1
-    ]).
-
+    field/2,
+    status/1
+]).
 
 %%-------------------------------------------------------------------------
 %%% API
@@ -65,7 +66,6 @@ reply(Proc, Arg) when is_atom(Proc) ->
     Header = #remote_message_header{proc = Call, type = <<?REMOTE_REPLY:32>>},
     {Header, CallArg}.
 
-
 %%-------------------------------------------------------------------------
 %%% Encode/decode RPC messages
 %%-------------------------------------------------------------------------
@@ -82,72 +82,116 @@ encode({#remote_message_header{} = Header, CallArg}) ->
     encode({header(Header), CallArg});
 encode({Header, CallArg}) ->
     iolist_to_binary([
-            Header,
-            CallArg
-            ]).
+        Header,
+        CallArg
+    ]).
 
 decode(<<Header:?REMOTE_MESSAGE_HEADER_MAX/bytes, Rest/binary>>) ->
     decode(header(Header), Rest).
 
 % REMOTE_CALL
-decode(#remote_message_header{proc = Proc0,
-                              type = <<?REMOTE_CALL:32>>,
-                              status = <<?REMOTE_OK:32>>
-                             } = Header, Rest) ->
+decode(
+    #remote_message_header{
+        proc = Proc0,
+        type = <<?REMOTE_CALL:32>>,
+        status = <<?REMOTE_OK:32>>
+    } = Header,
+    Rest
+) ->
     {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
     Args = proc_to_call(Proc, "dec", "args"),
     {Header, decode_payload(Args, Rest)};
-
 % REMOTE_REPLY
-decode(#remote_message_header{proc = Proc0,
-                              type = <<?REMOTE_REPLY:32>>,
-                              status = <<?REMOTE_OK:32>>} = Header, Rest) ->
+decode(
+    #remote_message_header{
+        proc = Proc0,
+        type = <<?REMOTE_REPLY:32>>,
+        status = <<?REMOTE_OK:32>>
+    } = Header,
+    Rest
+) ->
     {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
     Ret = proc_to_call(Proc, "dec", "ret"),
     {Header, decode_payload(Ret, Rest)};
-decode(#remote_message_header{type = <<?REMOTE_REPLY:32>>,
-                              status = <<?REMOTE_ERROR:32>>} = Header, Rest) ->
+decode(
+    #remote_message_header{
+        type = <<?REMOTE_REPLY:32>>,
+        status = <<?REMOTE_ERROR:32>>
+    } = Header,
+    Rest
+) ->
     {Header, decode_payload(dec_remote_error, Rest)};
-
 % REMOTE_MESSAGE
-decode(#remote_message_header{proc = Proc0,
-                              type = <<?REMOTE_MESSAGE:32>>,
-                              status = <<?REMOTE_OK:32>>} = Header, Rest) ->
+decode(
+    #remote_message_header{
+        proc = Proc0,
+        type = <<?REMOTE_MESSAGE:32>>,
+        status = <<?REMOTE_OK:32>>
+    } = Header,
+    Rest
+) ->
     {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
     Ret = proc_to_call(Proc, "dec", "msg"),
     {Header, decode_payload(Ret, Rest)};
-
 % REMOTE_STREAM
 % contains binary data
-decode(#remote_message_header{type = <<?REMOTE_STREAM:32>>,
-                              status = <<?REMOTE_CONTINUE:32>>} = Header, Rest) ->
+decode(
+    #remote_message_header{
+        type = <<?REMOTE_STREAM:32>>,
+        status = <<?REMOTE_CONTINUE:32>>
+    } = Header,
+    Rest
+) ->
     {Header, Rest};
 % error
-decode(#remote_message_header{type = <<?REMOTE_STREAM:32>>,
-                              status = <<?REMOTE_ERROR:32>>} = Header, Rest) ->
+decode(
+    #remote_message_header{
+        type = <<?REMOTE_STREAM:32>>,
+        status = <<?REMOTE_ERROR:32>>
+    } = Header,
+    Rest
+) ->
     {Header, decode_payload(dec_remote_error, Rest)};
 % eof
-decode(#remote_message_header{type = <<?REMOTE_STREAM:32>>,
-                              status = <<?REMOTE_OK:32>>} = Header, <<>>) ->
+decode(
+    #remote_message_header{
+        type = <<?REMOTE_STREAM:32>>,
+        status = <<?REMOTE_OK:32>>
+    } = Header,
+    <<>>
+) ->
     {Header, []};
-
 % REMOTE_CALL_WITH_FDS
-decode(#remote_message_header{proc = Proc0,
-                              type = <<?REMOTE_CALL_WITH_FDS:32>>} = Header, <<NumFD:8, Rest/binary>>) ->
+decode(
+    #remote_message_header{
+        proc = Proc0,
+        type = <<?REMOTE_CALL_WITH_FDS:32>>
+    } = Header,
+    <<NumFD:8, Rest/binary>>
+) ->
     {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
     Args = proc_to_call(Proc, "dec", "args"),
-    {Header, [NumFD|decode_payload(Args, Rest)]};
-
+    {Header, [NumFD | decode_payload(Args, Rest)]};
 % REMOTE_REPLY_WITH_FDS
-decode(#remote_message_header{proc = Proc0,
-                              type = <<?REMOTE_REPLY_WITH_FDS:32>>,
-                              status = <<?REMOTE_OK:32>>} = Header, <<NumFD:8, Rest/binary>>) ->
+decode(
+    #remote_message_header{
+        proc = Proc0,
+        type = <<?REMOTE_REPLY_WITH_FDS:32>>,
+        status = <<?REMOTE_OK:32>>
+    } = Header,
+    <<NumFD:8, Rest/binary>>
+) ->
     {Proc, 4} = remote_protocol_xdr:dec_remote_procedure(Proc0, 0),
     Args = proc_to_call(Proc, "dec", "args"),
-    {Header, [NumFD|decode_payload(Args, Rest)]};
+    {Header, [NumFD | decode_payload(Args, Rest)]};
 % XXX returns num fd in an error message?
-decode(#remote_message_header{type = <<?REMOTE_REPLY_WITH_FDS:32>>,
-                              status = <<?REMOTE_ERROR:32>>} = Header, <<_NumFD:8, Rest/binary>>) ->
+decode(
+    #remote_message_header{
+        type = <<?REMOTE_REPLY_WITH_FDS:32>>,
+        status = <<?REMOTE_ERROR:32>>
+    } = Header,
+    <<_NumFD:8, Rest/binary>>
+) ->
     {Header, decode_payload(dec_remote_error, Rest)}.
 
 % XXX shouldn't be a payload if no return values
@@ -157,26 +201,28 @@ decode_payload(Fun, Payload) ->
     {Val, _Off} = remote_protocol_xdr:Fun(Payload, 0),
     tuple_to_list(Val).
 
-
 %%-------------------------------------------------------------------------
 %%% RPC protocol
 %%-------------------------------------------------------------------------
 
 %% Remote protocol message header
 header(#remote_message_header{
-        prog = Prog,
-        vers = Vers,
-        proc = Proc,
-        type = Type,
-        serial = Serial,
-        status = Status
-    }) ->
-    <<Prog:4/bytes, Vers:4/bytes, Proc:4/bytes,
-      Type:4/bytes, Serial:4/bytes, Status:4/bytes>>;
+    prog = Prog,
+    vers = Vers,
+    proc = Proc,
+    type = Type,
+    serial = Serial,
+    status = Status
+}) ->
+    <<Prog:4/bytes, Vers:4/bytes, Proc:4/bytes, Type:4/bytes, Serial:4/bytes, Status:4/bytes>>;
 header(<<
-    Prog:4/bytes, Vers:4/bytes, Proc:4/bytes,
-    Type:4/bytes, Serial:4/bytes, Status:4/bytes
-    >>) ->
+    Prog:4/bytes,
+    Vers:4/bytes,
+    Proc:4/bytes,
+    Type:4/bytes,
+    Serial:4/bytes,
+    Status:4/bytes
+>>) ->
     #remote_message_header{
         prog = Prog,
         vers = Vers,
@@ -194,19 +240,24 @@ field(version, <<?UINT32(N)>>) -> N;
 field(procedure, <<?UINT32(N)>>) -> N;
 field(type, <<?UINT32(N)>>) -> N;
 field(serial, <<?UINT32(N)>>) -> N;
-
 field(status, <<?UINT32(?REMOTE_OK)>>) -> ok;
 field(status, <<?UINT32(?REMOTE_ERROR)>>) -> error;
 field(status, <<?UINT32(?REMOTE_CONTINUE)>>) -> continue.
 
-status({#remote_message_header{
-                    status = Status
-                    }, []}) ->
-        verx_rpc:field(status, Status);
-status({#remote_message_header{
-                    status = Status
-                    }, Reply}) ->
-        {verx_rpc:field(status, Status), Reply}.
+status(
+    {#remote_message_header{
+            status = Status
+        },
+        []}
+) ->
+    verx_rpc:field(status, Status);
+status(
+    {#remote_message_header{
+            status = Status
+        },
+        Reply}
+) ->
+    {verx_rpc:field(status, Status), Reply}.
 
 %%-------------------------------------------------------------------------
 %%% Internal functions
@@ -221,7 +272,6 @@ proc_to_call(Proc, "dec", Suffix) ->
 
 proc_to_call_1("REMOTE_PROC_" ++ Proc, Prefix, Suffix) ->
     list_to_atom(Prefix ++ "_remote_" ++ string:to_lower(Proc) ++ "_" ++ Suffix).
-
 
 % Procedures with no arguments do not have stubs generated in
 % the XDR spec, so there is no way to check if the procedures

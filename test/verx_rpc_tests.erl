@@ -1,4 +1,4 @@
-%% Copyright (c) 2012-2013, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2012-2021, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 -compile(export_all).
 
 -include_lib("eunit/include/eunit.hrl").
+
 -include("verx.hrl").
 
 rpc_test_() ->
@@ -64,7 +65,8 @@ args_domain_create_xml_encode_decode() ->
 %   enc_remote_nonnull_string, enc_remote_uuid, length of string
 ret_domain_create_xml_encode_decode() ->
     UUIDString = <<"97da79eb-5b19-7be8-cb76-a1acff00e4d3">>,
-    UUID = <<1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6>>, % 16 bytes
+    % 16 bytes
+    UUID = <<1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6>>,
 
     % an XDR remote_nonnull_domain type
     Args = [{UUIDString, UUID, byte_size(UUIDString)}],

@@ -1,4 +1,4 @@
-%% Copyright (c) 2010-2014, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2010-2021, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -34,22 +34,29 @@
 -define(LIBVIRT_TCP_PORT, 16509).
 -define(LIBVIRT_TLS_PORT, 16514).
 
--define(UINT32(N), (N):4/unsigned-integer-unit:8).
--define(UINT64(N), (N):8/unsigned-integer-unit:8).
--define(INT32(N), (N):4/signed-integer-unit:8).
--define(INT64(N), (N):8/signed-integer-unit:8).
+-define(UINT32(N), (N):4 / unsigned - integer - unit:8).
+-define(UINT64(N), (N):8 / unsigned - integer - unit:8).
+-define(INT32(N), (N):4 / signed - integer - unit:8).
+-define(INT64(N), (N):8 / signed - integer - unit:8).
 
 -define(REMOTE_MESSAGE_HEADER_MAX, 24).
 -define(REMOTE_MESSAGE_PAYLOAD_MAX, 262120).
 -define(REMOTE_MESSAGE_HEADER_XDR_LEN, 4).
 
 %% remote_message_type
--define(REMOTE_CALL, 0).            % client -> server. args from a method call
--define(REMOTE_REPLY, 1).           % server -> client. reply/error from a method call
--define(REMOTE_MESSAGE, 2).         % either direction. async notification
--define(REMOTE_STREAM, 3).          % either direction. stream data packet
--define(REMOTE_CALL_WITH_FDS, 4).   % client -> server. args from a method call, with passed FDs
--define(REMOTE_REPLY_WITH_FDS, 5).  % server -> client. reply/error from a method call, with passed FDs
+
+% client -> server. args from a method call
+-define(REMOTE_CALL, 0).
+% server -> client. reply/error from a method call
+-define(REMOTE_REPLY, 1).
+% either direction. async notification
+-define(REMOTE_MESSAGE, 2).
+% either direction. stream data packet
+-define(REMOTE_STREAM, 3).
+% client -> server. args from a method call, with passed FDs
+-define(REMOTE_CALL_WITH_FDS, 4).
+% server -> client. reply/error from a method call, with passed FDs
+-define(REMOTE_REPLY_WITH_FDS, 5).
 
 %% remote_message_status
 -define(REMOTE_OK, 0).
@@ -67,10 +74,10 @@
 %%      4 bytes: status
 %%  Variable: procedure arguments
 -record(remote_message_header, {
-        prog = <<?REMOTE_PROGRAM:32>>,
-        vers = <<?REMOTE_PROTOCOL_VERSION:32>>,
-        proc = <<0:32>>,
-        type = <<?REMOTE_CALL:32>>,
-        serial = <<0:32>>,
-        status = <<?REMOTE_OK:32>>
-    }).
+    prog = <<?REMOTE_PROGRAM:32>>,
+    vers = <<?REMOTE_PROTOCOL_VERSION:32>>,
+    proc = <<0:32>>,
+    type = <<?REMOTE_CALL:32>>,
+    serial = <<0:32>>,
+    status = <<?REMOTE_OK:32>>
+}).

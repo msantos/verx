@@ -1,4 +1,4 @@
-%% Copyright (c) 2014-2015, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2014-2021, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -29,27 +29,30 @@
 %% ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 %% POSSIBILITY OF SUCH DAMAGE.
 -module(verx_config).
+
 -include_lib("xmerl/include/xmerl.hrl").
 
 %%
 %% Convert between libvirt XML configuration and Erlang terms
 %%
 -export([
-        init/0, init/1,
+    init/0, init/1,
 
-        set/2, set/3,
-        append/3,
+    set/2, set/3,
+    append/3,
 
-        to_xml/1
-    ]).
+    to_xml/1
+]).
 
 init() ->
     {domain, [], []}.
 
 init(Attr) ->
-    lists:foldl(fun(A,Cfg) -> set_attr(A, Cfg) end,
+    lists:foldl(
+        fun(A, Cfg) -> set_attr(A, Cfg) end,
         init(),
-        Attr).
+        Attr
+    ).
 
 to_xml(Cfg) when is_tuple(Cfg) ->
     lists:flatten(
@@ -64,19 +67,20 @@ set(Keys, Val) when is_list(Keys) ->
     set_1(Keys, Val).
 
 set_1(Keys, Val) ->
-    {Node, Rest} = case lists:reverse(Keys) of
-        [{K,A}|T] ->
-            {{K,A,maybe_list(Val)}, T};
-        [H|T] ->
-            {{H,maybe_list(Val)}, T}
-    end,
+    {Node, Rest} =
+        case lists:reverse(Keys) of
+            [{K, A} | T] ->
+                {{K, A, maybe_list(Val)}, T};
+            [H | T] ->
+                {{H, maybe_list(Val)}, T}
+        end,
     set_2(Rest, Node).
 
 set_2([], Node) ->
     Node;
-set_2([{Key, Attr}|T], Node) ->
+set_2([{Key, Attr} | T], Node) ->
     set_2(T, {Key, Attr, [Node]});
-set_2([Key|T], Node) ->
+set_2([Key | T], Node) ->
     set_2(T, {Key, [Node]}).
 
 set(Key, Val, {domain, _, _} = Cfg) ->
@@ -109,6 +113,6 @@ append_opt({Key, Val}, Options) ->
             set_opt({Key, Val ++ OVal}, Options)
     end.
 
-maybe_list([C|_] = N) when is_integer(C) -> [N];
+maybe_list([C | _] = N) when is_integer(C) -> [N];
 maybe_list(N) when is_list(N) -> N;
 maybe_list(N) -> [N].

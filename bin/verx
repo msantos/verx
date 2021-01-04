@@ -3,15 +3,17 @@
 %%%
 %%% Command line interface using the libvirt remote protocol
 %%%
+
 -include_lib("kernel/include/file.hrl").
 -include_lib("verx/include/verx.hrl").
 
 main(Opt) ->
     Basedir = filename:absname(filename:dirname(escript:script_name())),
 
-    Paths = [ Basedir ++ "/../ebin" ] ++
-        filelib:wildcard(Basedir ++ "/../deps/*/ebin") ++
-        filelib:wildcard(Basedir ++ "/../../*/ebin"),
+    Paths =
+        [Basedir ++ "/../ebin"] ++
+            filelib:wildcard(Basedir ++ "/../deps/*/ebin") ++
+            filelib:wildcard(Basedir ++ "/../../*/ebin"),
 
     % load verx
     code:add_paths(Paths),
@@ -24,52 +26,45 @@ call(["autostart", Name | Arg]) ->
     {ok, Ref} = connect(Opt),
     {ok, [Res]} = lookup(Ref, {domain, Name}),
     rp(verx:domain_set_autostart(Ref, [Res, 1 bxor bool(Disable)]));
-
 call(["capabilities" | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
     rp(verx:connect_get_capabilities(Ref));
-
 call(["console", Name | Arg]) ->
     Opt = getopt(Arg),
     Pid = spawn_link(fun() -> console_recv(Name, Opt) end),
     ok = io:setopts(standard_io, [binary]),
     tty_read(Pid);
-
 call(["ctl-alt-del", Name | Arg]) ->
     call(["send-key", Name, "29 56 111" | Arg]);
-
 call(["create", Name | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
 
-    {ok, [Domain]} = case file:read_file(Name) of
-        {ok, XML} ->
-            verx:domain_define_xml(Ref, [XML]);
-        {error, enoent} ->
-            lookup(Ref, {domain, Name})
+    {ok, [Domain]} =
+        case file:read_file(Name) of
+            {ok, XML} ->
+                verx:domain_define_xml(Ref, [XML]);
+            {error, enoent} ->
+                lookup(Ref, {domain, Name})
         end,
     rp(verx:domain_create(Ref, [Domain]));
-
 call(["define", File | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
     {ok, XML} = file:read_file(File),
     rp(verx:domain_define_xml(Ref, [XML]));
-
 call(["destroy", Name | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
     {ok, [Domain]} = lookup(Ref, {domain, Name}),
     rp(verx:domain_destroy(Ref, [Domain]));
-
 call(["dumpxml", Name | Arg]) ->
     Opt = getopt(Arg),
     Flags = proplists:get_value("flags", Opt, 0),
     {ok, Ref} = connect(Opt),
     {ok, [Domain]} = lookup(Ref, {domain, Name}),
     rp(verx:domain_get_xml_desc(Ref, [Domain, Flags]));
-
 call(["list" | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
@@ -78,17 +73,17 @@ call(["list" | Arg]) ->
     {ok, [NumRun]} = verx:connect_num_of_domains(Ref),
     {ok, [Running]} = verx:connect_list_domains(Ref, [NumRun]),
 
-    N = case All of
-        true ->
-            {ok, [NumDef]} = verx:connect_num_of_defined_domains(Ref),
-            {ok, [Shutoff]} = verx:connect_list_defined_domains(Ref, [NumDef]),
-            [{shutoff, domains(Ref, Shutoff)}];
-        false ->
-            []
-    end,
+    N =
+        case All of
+            true ->
+                {ok, [NumDef]} = verx:connect_num_of_defined_domains(Ref),
+                {ok, [Shutoff]} = verx:connect_list_defined_domains(Ref, [NumDef]),
+                [{shutoff, domains(Ref, Shutoff)}];
+            false ->
+                []
+        end,
 
-    rp({ok, [{running, domains(Ref, Running)}|N]});
-
+    rp({ok, [{running, domains(Ref, Running)} | N]});
 call(["screenshot", Name | Arg]) ->
     Opt = getopt(Arg),
     Screen = proplists:get_value("screen", Opt, 0),
@@ -102,17 +97,17 @@ call(["screenshot", Name | Arg]) ->
     {ok, [Mime]} = verx:domain_screenshot(Ref, [Domain, Screen, Flags]),
     {ok, Buf} = verx_client:recvall(Ref, Timeout),
 
-    File1 = case File of
-        undefined ->
-            Name ++ "_" ++ os:getpid() ++ mime_ext(Mime);
-        _ ->
-            File
-    end,
+    File1 =
+        case File of
+            undefined ->
+                Name ++ "_" ++ os:getpid() ++ mime_ext(Mime);
+            _ ->
+                File
+        end,
 
     ok = file:write_file(File1, Buf),
 
     rp({ok, Mime, File1});
-
 call(["recv", Name | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
@@ -120,14 +115,12 @@ call(["recv", Name | Arg]) ->
     {ok, [Domain]} = lookup(Ref, {domain, Name}),
     ok = verx:domain_open_console(Ref, [Domain, void, 0]),
     rp(verx_client:recv(Ref, Timeout));
-
 call(["send", Name | Arg]) ->
     {Opt, Cmd} = getopt(Arg),
     {ok, Ref} = connect(Opt),
     {ok, [Domain]} = lookup(Ref, {domain, Name}),
     ok = verx:domain_open_console(Ref, [Domain, void, 0]),
-    rp(verx_client:send(Ref, [ list_to_binary([C, "\n"]) || C <- Cmd ]));
-
+    rp(verx_client:send(Ref, [list_to_binary([C, "\n"]) || C <- Cmd]));
 call(["send-key", Name, Keycode | Arg]) ->
     Opt = getopt(Arg),
     Codeset = list_to_integer(proplists:get_value("codeset", Opt, "0")),
@@ -137,27 +130,28 @@ call(["send-key", Name, Keycode | Arg]) ->
     {ok, Ref} = connect(Opt),
     {ok, [Domain]} = lookup(Ref, {domain, Name}),
 
-    rp(verx:domain_send_key(Ref, [
-        Domain,
-        Codeset,
-        Holdtime,
-        [ list_to_integer(N) ||
-            N <- string:tokens(Keycode, " ") ],
-        Flags]
-    ));
-
+    rp(
+        verx:domain_send_key(Ref, [
+            Domain,
+            Codeset,
+            Holdtime,
+            [
+                list_to_integer(N)
+                || N <- string:tokens(Keycode, " ")
+            ],
+            Flags
+        ])
+    );
 call(["shutdown", Name | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
     {ok, [Domain]} = lookup(Ref, {domain, Name}),
     rp(verx:domain_shutdown(Ref, [Domain]));
-
 call(["undefine", Name | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
     {ok, [Domain]} = lookup(Ref, {domain, Name}),
     rp(verx:domain_undefine(Ref, [Domain]));
-
 call(["version" | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
@@ -166,10 +160,13 @@ call(["version" | Arg]) ->
     {ok, [Version]} = verx:connect_get_version(Ref),
     {ok, [Lib]} = verx:connect_get_lib_version(Ref),
 
-    rp({ok, [{type, Type},
-             {version, version(Version)},
-             {lib_version, version(Lib)}]});
-
+    rp(
+        {ok, [
+            {type, Type},
+            {version, version(Version)},
+            {lib_version, version(Lib)}
+        ]}
+    );
 call(["pool-list" | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
@@ -177,13 +174,17 @@ call(["pool-list" | Arg]) ->
     {ok, [Num]} = verx:connect_num_of_storage_pools(Ref),
     {ok, [Res]} = verx:connect_list_storage_pools(Ref, [Num]),
 
-    rp({ok, [ begin
-        {ok, [N]} = lookup(Ref, {pool, R}),
-        {ok, [Active]} = verx:storage_pool_is_active(Ref, [N]),
-        {ok, [Autostart]} = verx:storage_pool_get_autostart(Ref, [N]),
-        {R, [{state, bool(Active)}, {autostart, bool(Autostart)}]}
-    end || R <- Res ]});
-
+    rp(
+        {ok, [
+            begin
+                {ok, [N]} = lookup(Ref, {pool, R}),
+                {ok, [Active]} = verx:storage_pool_is_active(Ref, [N]),
+                {ok, [Autostart]} = verx:storage_pool_get_autostart(Ref, [N]),
+                {R, [{state, bool(Active)}, {autostart, bool(Autostart)}]}
+            end
+            || R <- Res
+        ]}
+    );
 call(["vol-list", Name | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
@@ -192,12 +193,16 @@ call(["vol-list", Name | Arg]) ->
     {ok, [Num]} = verx:storage_pool_num_of_volumes(Ref, [X]),
     {ok, [Res]} = verx:storage_pool_list_volumes(Ref, [X, Num]),
 
-    rp({ok, [ begin
-            {ok, [N]} = verx:storage_vol_lookup_by_name(Ref, [X, R]),
-            {ok, [Path]} = verx:storage_vol_get_path(Ref, [N]),
-            {R, [{path, Path}]}
-        end || R <- Res ]});
-
+    rp(
+        {ok, [
+            begin
+                {ok, [N]} = verx:storage_vol_lookup_by_name(Ref, [X, R]),
+                {ok, [Path]} = verx:storage_vol_get_path(Ref, [N]),
+                {R, [{path, Path}]}
+            end
+            || R <- Res
+        ]}
+    );
 call(["vol-download", Name, File | Arg]) ->
     Opt = getopt(Arg),
     Offset = list_to_integer(proplists:get_value("offset", Opt, "0")),
@@ -209,45 +214,40 @@ call(["vol-download", Name, File | Arg]) ->
     ok = verx:storage_vol_download(Ref, [X, Offset, Length, Flags]),
     download(Ref, File, Timeout),
     rp(ok);
-
 call(["net-autostart", Name | Arg]) ->
     Opt = getopt(Arg),
     Disable = proplists:get_value("disable", Opt, false),
     {ok, Ref} = connect(Opt),
     {ok, [Res]} = lookup(Ref, {net, Name}),
     rp(verx:network_set_autostart(Ref, [Res, 1 bxor bool(Disable)]));
-
 call(["net-create", Name | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
 
-    {ok, [Res]} = case file:read_file(Name) of
-        {ok, XML} ->
-            verx:network_define_xml(Ref, [XML]);
-        {error, enoent} ->
-            lookup(Ref, {net, Name})
+    {ok, [Res]} =
+        case file:read_file(Name) of
+            {ok, XML} ->
+                verx:network_define_xml(Ref, [XML]);
+            {error, enoent} ->
+                lookup(Ref, {net, Name})
         end,
     rp(verx:network_create(Ref, [Res]));
-
 call(["net-define", File | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
     {ok, XML} = file:read_file(File),
     rp(verx:network_define_xml(Ref, [XML]));
-
 call(["net-destroy", Name | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
     {ok, [Res]} = lookup(Ref, {net, Name}),
     rp(verx:network_destroy(Ref, [Res]));
-
 call(["net-dumpxml", Name | Arg]) ->
     Opt = getopt(Arg),
     Flags = proplists:get_value("flags", Opt, 0),
     {ok, Ref} = connect(Opt),
     {ok, [Res]} = lookup(Ref, {net, Name}),
     rp(verx:network_get_xml_desc(Ref, [Res, Flags]));
-
 call(["net-info", Name | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
@@ -257,10 +257,13 @@ call(["net-info", Name | Arg]) ->
     {ok, [Autostart]} = verx:network_get_autostart(Ref, [Res]),
     {ok, [Bridge]} = verx:network_get_bridge_name(Ref, [Res]),
 
-    rp({ok, [{persistent, bool(Persistent)},
-             {autostart, bool(Autostart)},
-             {bridgename, Bridge}]});
-
+    rp(
+        {ok, [
+            {persistent, bool(Persistent)},
+            {autostart, bool(Autostart)},
+            {bridgename, Bridge}
+        ]}
+    );
 call(["net-list" | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
@@ -268,44 +271,43 @@ call(["net-list" | Arg]) ->
     {ok, [Num]} = verx:connect_num_of_networks(Ref),
     {ok, [List]} = verx:connect_list_networks(Ref, [Num]),
 
-    rp({ok, [ begin
+    rp(
+        {ok, [
+            begin
                 {ok, [Res]} = lookup(Ref, {net, Name}),
                 {ok, [Active]} = verx:network_is_active(Ref, [Res]),
                 {ok, [Autostart]} = verx:network_get_autostart(Ref, [Res]),
                 {Name, [{state, bool(Active)}, {autostart, bool(Autostart)}]}
-              end || Name <- List ]});
-
+            end
+            || Name <- List
+        ]}
+    );
 call(["net-undefine", Name | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
     {ok, [Res]} = lookup(Ref, {net, Name}),
     rp(verx:network_undefine(Ref, [Res]));
-
 call(["nwfilter-define", File | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
     {ok, XML} = file:read_file(File),
     rp(verx:nwfilter_define_xml(Ref, [XML]));
-
 call(["nwfilter-dumpxml", Name | Arg]) ->
     Opt = getopt(Arg),
     Flags = proplists:get_value("flags", Opt, 0),
     {ok, Ref} = connect(Opt),
     {ok, [Res]} = lookup(Ref, {filter, Name}),
     rp(verx:nwfilter_get_xml_desc(Ref, [Res, Flags]));
-
 call(["nwfilter-list" | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
     {ok, [Num]} = verx:connect_num_of_nwfilters(Ref),
     rp(verx:connect_list_nwfilters(Ref, [Num]));
-
 call(["nwfilter-undefine", Name | Arg]) ->
     Opt = getopt(Arg),
     {ok, Ref} = connect(Opt),
     {ok, [Res]} = lookup(Ref, {filter, Name}),
     rp(verx:nwfilter_undefine(Ref, [Res]));
-
 call(_) ->
     Help = [
         "autostart",
@@ -340,14 +342,12 @@ call(_) ->
         "nwfilter-dumpxml",
         "nwfilter-list",
         "nwfilter-undefine"
-
         "pool-list",
         "vol-list",
         "vol-download"
     ],
     rp(Help),
     halt(1).
-
 
 %%-------------------------------------------------------------------------
 %%% Internal functions
@@ -359,8 +359,15 @@ connect(Opt0) ->
     Opt = proplists:substitute_aliases([{"connect", "uri"}], Opt0),
     URI = proplists:get_value("uri", Opt, "qemu:///system"),
 
-    Transport = transport(list_to_atom(proplists:get_value("transport", Opt,
-                    "verx_client_unix"))),
+    Transport = transport(
+        list_to_atom(
+            proplists:get_value(
+                "transport",
+                Opt,
+                "verx_client_unix"
+            )
+        )
+    ),
 
     % Unix socket
     Path = proplists:get_value("path", Opt, ?LIBVIRT_SOCK_PATH),
@@ -377,16 +384,16 @@ connect(Opt0) ->
     Depth = maybe_integer(proplists:get_value("depth", Opt, "1")),
 
     {ok, Ref} = verx_client:start_link([
-            {transport, Transport},
-            {path, Path},
-            {host, Host},
-            {port, Port},
+        {transport, Transport},
+        {path, Path},
+        {host, Host},
+        {port, Port},
 
-            {cacert, CACert},
-            {cert, Cert},
-            {key, Key},
-            {depth, Depth}
-            ]),
+        {cacert, CACert},
+        {cert, Cert},
+        {key, Key},
+        {depth, Depth}
+    ]),
     ok = verx:connect_open(Ref, [URI, 0]),
     {ok, Ref}.
 
@@ -396,64 +403,76 @@ transport(unix) -> verx_client_unix;
 transport(N) -> N.
 
 getopt(Opts0) ->
-    Opts = lists:flatmap(fun(X)-> string:tokens(X, "=") end, Opts0),
+    Opts = lists:flatmap(fun(X) -> string:tokens(X, "=") end, Opts0),
     getopt(Opts, []).
+
 getopt([], Acc) ->
     lists:reverse(Acc);
 getopt(["--" ++ Key, "--" ++ _ = Val | Rest], Acc) ->
-    getopt([Val|Rest], [{Key, true}|Acc]);
+    getopt([Val | Rest], [{Key, true} | Acc]);
 getopt(["--" ++ Key], Acc) ->
-    getopt([], [{Key, true}|Acc]);
+    getopt([], [{Key, true} | Acc]);
 getopt(["--" ++ Key, Val | Rest], Acc) ->
-    getopt(Rest, [{Key, Val}|Acc]);
+    getopt(Rest, [{Key, Val} | Acc]);
 getopt(Rest, Acc) ->
     {lists:reverse(Acc), Rest}.
 
 domains(Ref, Domains) ->
-    [ begin
-        {ok, [{Name, UUID, Id}]} = if
-                is_integer(N) -> verx:domain_lookup_by_id(Ref, [N]);
-                is_binary(N) -> verx:domain_lookup_by_name(Ref, [N])
-            end,
-        {Name, [{uuid, uuid:uuid_to_string(UUID)}, {id, Id}]}
-      end || N <- Domains ].
+    [
+        begin
+            {ok, [{Name, UUID, Id}]} =
+                if
+                    is_integer(N) -> verx:domain_lookup_by_id(Ref, [N]);
+                    is_binary(N) -> verx:domain_lookup_by_name(Ref, [N])
+                end,
+            {Name, [{uuid, uuid:uuid_to_string(UUID)}, {id, Id}]}
+        end
+        || N <- Domains
+    ].
 
 lookup(Ref, {domain, Name}) ->
-    Fun = [ fun() -> verx:domain_lookup_by_id(Ref, [maybe_integer(Name)]) end,
-            fun() -> verx:domain_lookup_by_name(Ref, [maybe_binary(Name)]) end,
-            fun() -> verx:domain_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end ],
+    Fun = [
+        fun() -> verx:domain_lookup_by_id(Ref, [maybe_integer(Name)]) end,
+        fun() -> verx:domain_lookup_by_name(Ref, [maybe_binary(Name)]) end,
+        fun() -> verx:domain_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end
+    ],
     lookup_1(Fun);
-
 lookup(Ref, {filter, Name}) ->
-    Fun = [ fun() -> verx:nwfilter_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end,
-            fun() -> verx:nwfilter_lookup_by_name(Ref, [maybe_binary(Name)]) end ],
+    Fun = [
+        fun() -> verx:nwfilter_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end,
+        fun() -> verx:nwfilter_lookup_by_name(Ref, [maybe_binary(Name)]) end
+    ],
     lookup_1(Fun);
-
 lookup(Ref, {net, Name}) ->
-    Fun = [ fun() -> verx:network_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end,
-            fun() -> verx:network_lookup_by_name(Ref, [maybe_binary(Name)]) end ],
+    Fun = [
+        fun() -> verx:network_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end,
+        fun() -> verx:network_lookup_by_name(Ref, [maybe_binary(Name)]) end
+    ],
     lookup_1(Fun);
-
 lookup(Ref, {pool, Name}) ->
-    Fun = [ fun() -> verx:storage_pool_lookup_by_name(Ref, [maybe_binary(Name)]) end,
-            fun() -> verx:storage_pool_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end ],
+    Fun = [
+        fun() -> verx:storage_pool_lookup_by_name(Ref, [maybe_binary(Name)]) end,
+        fun() -> verx:storage_pool_lookup_by_uuid(Ref, [uuid:string_to_uuid(Name)]) end
+    ],
     lookup_1(Fun);
-
 lookup(Ref, {vol, Name}) ->
-    Fun = [ fun() -> verx:storage_vol_lookup_by_key(Ref, [maybe_binary(Name)]) end,
-            fun() -> verx:storage_vol_lookup_by_path(Ref, [maybe_binary(Name)]) end ],
+    Fun = [
+        fun() -> verx:storage_vol_lookup_by_key(Ref, [maybe_binary(Name)]) end,
+        fun() -> verx:storage_vol_lookup_by_path(Ref, [maybe_binary(Name)]) end
+    ],
     lookup_1(Fun).
 
-lookup_1(Fun)  ->
+lookup_1(Fun) ->
     lookup_1(Fun, []).
-lookup_1([], [{error, Error}|_]) ->
+
+lookup_1([], [{error, Error} | _]) ->
     {error, Error};
-lookup_1([Fun|Tail], Acc) ->
+lookup_1([Fun | Tail], Acc) ->
     try Fun() of
         {ok, Res} ->
             {ok, Res};
         {error, Error} ->
-            lookup_1(Tail, [{error, Error}|Acc])
+            lookup_1(Tail, [{error, Error} | Acc])
     catch
         _:_ ->
             lookup_1(Tail, Acc)
@@ -485,7 +504,7 @@ download_1(Ref, FH, Timeout, Col, Total) ->
     case verx_client:recv(Ref, Timeout) of
         % XXX just seems to timeout when done?
         {error, eagain} ->
-%        ok ->
+            %        ok ->
             verx_client:finish(Ref),
             file:close(FH),
             progress(69, Total),
@@ -495,7 +514,7 @@ download_1(Ref, FH, Timeout, Col, Total) ->
             progress(Col rem 70, Total1),
             ok = file:write(FH, Bytes),
             erlang:garbage_collect(),
-            download_1(Ref, FH, Timeout, Col+1, Total1)
+            download_1(Ref, FH, Timeout, Col + 1, Total1)
     end.
 
 progress(69, Total) when Total > 1024 * 1024 * 1024 ->
@@ -529,13 +548,19 @@ console_recv(Name, Opt) ->
 
 console_read(Ref) ->
     receive
-        {verx, Ref, {#remote_message_header{
-            type = <<?REMOTE_STREAM:32>>,
-            status = <<?REMOTE_OK:32>>}, []}} ->
+        {verx, Ref,
+            {#remote_message_header{
+                    type = <<?REMOTE_STREAM:32>>,
+                    status = <<?REMOTE_OK:32>>
+                },
+                []}} ->
             ok;
-        {verx, Ref, {#remote_message_header{
-            type = <<?REMOTE_STREAM:32>>,
-            status = <<?REMOTE_CONTINUE:32>>}, Buf}} ->
+        {verx, Ref,
+            {#remote_message_header{
+                    type = <<?REMOTE_STREAM:32>>,
+                    status = <<?REMOTE_CONTINUE:32>>
+                },
+                Buf}} ->
             io:format("~s", [Buf]),
             console_read(Ref);
         {tty_read, Buf} ->

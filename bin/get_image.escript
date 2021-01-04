@@ -13,7 +13,8 @@ main(_) ->
     inets:start(),
     ssl:start(),
 
-    URI = "http://downloads.openwrt.org/backfire/10.03.1/x86_generic/openwrt-x86-generic-combined-ext2.img.gz",
+    URI =
+        "http://downloads.openwrt.org/backfire/10.03.1/x86_generic/openwrt-x86-generic-combined-ext2.img.gz",
     File = "priv/" ++ filename:basename(URI),
     Image = filename:rootname(File),
 
@@ -53,10 +54,11 @@ config(Cfg, File) ->
             {ok, Dir} = file:get_cwd(),
             {ok, Bin} = file:read_file(Dist),
 
-            Qemu =  get_qemu_path(),
-            Interface =  get_interface(),
+            Qemu = get_qemu_path(),
+            Interface = get_interface(),
 
-            Bin1 = lists:foldl(fun({Replace, With}, Buf) ->
+            Bin1 = lists:foldl(
+                fun({Replace, With}, Buf) ->
                     io:format("~s: ~s = ~s~n", [Cfg, Replace, With]),
                     re:replace(Buf, Replace, With, [{return, binary}])
                 end,
@@ -65,7 +67,8 @@ config(Cfg, File) ->
                     {"@PATH@", Dir ++ "/" ++ File},
                     {"@QEMU@", Qemu},
                     {"@INTERFACE@", Interface}
-                 ]),
+                ]
+            ),
 
             ok = file:write_file(Cfg, Bin1)
     end.
@@ -84,21 +87,25 @@ get_interface() ->
 
 interface(false) ->
     io_lib:format(
-            "<interface type='user'>
-                <mac address='~s'/>
-            </interface>", [macaddr()]
-            );
+        "<interface type='user'>\n"
+        "                <mac address='~s'/>\n"
+        "            </interface>",
+        [macaddr()]
+    );
 interface(Bridge) ->
     io_lib:format(
-            "<interface type='bridge'>
-                <mac address='~s'/>
-                <source bridge='~s'/>
-                <model type='e1000'/>
-                <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
-            </interface>", [macaddr(), Bridge]
+        "<interface type='bridge'>\n"
+        "                <mac address='~s'/>\n"
+        "                <source bridge='~s'/>\n"
+        "                <model type='e1000'/>\n"
+        "                <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>\n"
+        "            </interface>",
+        [macaddr(), Bridge]
     ).
 
 macaddr() ->
-    "52:54:00:" ++ string:join(
-                [ httpd_util:integer_to_hexlist(N) || <<N>> <= crypto:rand_bytes(3) ],
-                ":").
+    "52:54:00:" ++
+        string:join(
+            [httpd_util:integer_to_hexlist(N) || <<N>> <= crypto:rand_bytes(3)],
+            ":"
+        ).

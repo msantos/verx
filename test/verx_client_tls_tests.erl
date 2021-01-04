@@ -1,4 +1,4 @@
-%% Copyright (c) 2012-2013, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2012-2021, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 -compile(export_all).
 
 -include_lib("eunit/include/eunit.hrl").
+
 -include("verx.hrl").
 
 -define(CLIENTCERT, "/etc/pki/libvirt/clientcert.pem").
@@ -42,11 +43,7 @@ transport_test_() ->
     Exists = ok =:= element(1, file:read_file_info(?CLIENTCERT)),
     case {Exists, verx_test_lib:is_listening(Port)} of
         {true, true} ->
-            {setup,
-                fun start/0,
-                fun stop/1,
-                fun verx_test_lib:run/1
-            };
+            {setup, fun start/0, fun stop/1, fun verx_test_lib:run/1};
         _ ->
             []
     end.

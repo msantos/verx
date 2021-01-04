@@ -1,4 +1,4 @@
-%% Copyright (c) 2011-2015, Michael Santos <michael.santos@gmail.com>
+%% Copyright (c) 2011-2021, Michael Santos <michael.santos@gmail.com>
 %% All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,7 @@
 -module(verx_client).
 
 -include_lib("kernel/include/inet.hrl").
+
 -include("verx.hrl").
 
 -export([start_link/0, start_link/1]).
@@ -47,19 +48,20 @@
     finish/1,
 
     getserial/1
-    ]).
+]).
+
 -export([
     stream/1,
     resolv/1, resolv/2,
     reply_to_caller/2
-    ]).
-
+]).
 
 %%-------------------------------------------------------------------------
 %%% API
 %%-------------------------------------------------------------------------
 start() ->
     start([]).
+
 start(Arg) ->
     Transport = proplists:get_value(transport, Arg, verx_client_unix),
     Self = self(),
@@ -67,6 +69,7 @@ start(Arg) ->
 
 start_link() ->
     start_link([]).
+
 start_link(Arg) ->
     Transport = proplists:get_value(transport, Arg, verx_client_unix),
     Self = self(),
@@ -76,9 +79,9 @@ stop(Ref) when is_pid(Ref) ->
     catch gen_server:call(Ref, stop),
     ok.
 
-
 call(Ref, Proc) ->
     call(Ref, Proc, []).
+
 call(Ref, Proc, Arg) ->
     case cast(Ref, Proc, Arg, infinity) of
         {ok, Serial} -> reply(Ref, Serial);
@@ -87,79 +90,97 @@ call(Ref, Proc, Arg) ->
 
 cast(Ref, Proc) ->
     cast(Ref, Proc, [], infinity).
+
 cast(Ref, Proc, Arg) ->
     cast(Ref, Proc, Arg, infinity).
-cast(Ref, Proc, Arg, Timeout)
-        when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
+
+cast(Ref, Proc, Arg, Timeout) when is_pid(Ref), is_atom(Proc), is_list(Arg) ->
     gen_server:call(Ref, {call, Proc, Arg}, Timeout).
 
 send(Ref, Buf) when is_binary(Buf) ->
     send(Ref, [Buf]);
 send(_Ref, []) ->
     ok;
-send(Ref, [Buf|Rest]) when is_binary(Buf) ->
+send(Ref, [Buf | Rest]) when is_binary(Buf) ->
     ok = gen_server:call(Ref, {send, Buf}, infinity),
     send(Ref, Rest).
 
 reply(Ref, Serial) ->
     reply(Ref, Serial, infinity).
+
 reply(Ref, Serial, Timeout) when is_pid(Ref), is_integer(Serial) ->
     receive
-        {verx, Ref, {#remote_message_header{
-                            serial = <<Serial:32>>,
-                            type = <<?REMOTE_REPLY:32>>}, _} = Reply} ->
+        {verx, Ref,
+            {#remote_message_header{
+                    serial = <<Serial:32>>,
+                    type = <<?REMOTE_REPLY:32>>
+                },
+                _} = Reply} ->
             verx_rpc:status(Reply)
-    after
-        Timeout ->
-            {error, eagain}
+    after Timeout -> {error, eagain}
     end.
 
 recv(Ref) ->
     recv(Ref, 5000).
+
 recv(Ref, Timeout) ->
     Serial = getserial(Ref),
     recv(Ref, Serial, Timeout).
+
 recv(Ref, Serial, Timeout) when is_pid(Ref), is_integer(Serial) ->
     receive
-        {verx, Ref, {#remote_message_header{
-                            serial = <<Serial:32>>,
-                            type = <<?REMOTE_STREAM:32>>,
-                            status = <<?REMOTE_OK:32>>}, []}} ->
+        {verx, Ref,
+            {#remote_message_header{
+                    serial = <<Serial:32>>,
+                    type = <<?REMOTE_STREAM:32>>,
+                    status = <<?REMOTE_OK:32>>
+                },
+                []}} ->
             ok;
-        {verx, Ref, {#remote_message_header{
-                            serial = <<Serial:32>>,
-                            type = <<?REMOTE_STREAM:32>>,
-                            status = <<?REMOTE_CONTINUE:32>>}, Payload}} ->
+        {verx, Ref,
+            {#remote_message_header{
+                    serial = <<Serial:32>>,
+                    type = <<?REMOTE_STREAM:32>>,
+                    status = <<?REMOTE_CONTINUE:32>>
+                },
+                Payload}} ->
             {ok, Payload}
-    after
-        Timeout ->
-            {error, eagain}
+    after Timeout -> {error, eagain}
     end.
 
 recvall(Ref) ->
     recvall(Ref, 2000).
+
 recvall(Ref, Timeout) ->
     recvall(Ref, Timeout, []).
+
 recvall(Ref, Timeout, Acc) when is_pid(Ref) ->
     receive
-        {verx, Ref, {#remote_message_header{
-                            type = <<?REMOTE_STREAM:32>>,
-                            status = <<?REMOTE_OK:32>>}, []}} ->
+        {verx, Ref,
+            {#remote_message_header{
+                    type = <<?REMOTE_STREAM:32>>,
+                    status = <<?REMOTE_OK:32>>
+                },
+                []}} ->
             {ok, lists:reverse(Acc)};
         % XXX A stream indicates finish by setting the status to
         % XXX REMOTE_OK. For screenshots, an empty body is returned with the
         % XXX status set to 'continue'.
-        {verx, Ref, {#remote_message_header{
-                        type = <<?REMOTE_STREAM:32>>,
-                        status = <<?REMOTE_CONTINUE:32>>}, <<>>}} ->
+        {verx, Ref,
+            {#remote_message_header{
+                    type = <<?REMOTE_STREAM:32>>,
+                    status = <<?REMOTE_CONTINUE:32>>
+                },
+                <<>>}} ->
             {ok, lists:reverse(Acc)};
-        {verx, Ref, {#remote_message_header{
-                        type = <<?REMOTE_STREAM:32>>,
-                        status = <<?REMOTE_CONTINUE:32>>}, Payload}} ->
-            recvall(Ref, Timeout, [Payload|Acc])
-    after
-        Timeout ->
-            {ok, lists:reverse(Acc)}
+        {verx, Ref,
+            {#remote_message_header{
+                    type = <<?REMOTE_STREAM:32>>,
+                    status = <<?REMOTE_CONTINUE:32>>
+                },
+                Payload}} ->
+            recvall(Ref, Timeout, [Payload | Acc])
+    after Timeout -> {ok, lists:reverse(Acc)}
     end.
 
 finish(Ref) when is_pid(Ref) ->
@@ -167,7 +188,6 @@ finish(Ref) when is_pid(Ref) ->
 
 getserial(Ref) when is_pid(Ref) ->
     gen_server:call(Ref, getserial).
-
 
 %%-------------------------------------------------------------------------
 %%% Utility functions
@@ -182,7 +202,7 @@ stream(Data, Acc) ->
         {<<>>, Rest} ->
             {lists:reverse(Acc), Rest};
         {Bin, Rest} ->
-            stream(Rest, [Bin|Acc])
+            stream(Rest, [Bin | Acc])
     end.
 
 % 4 byte length header, includes the size of the length header
@@ -195,11 +215,12 @@ message(Data) ->
 
 resolv(Host) ->
     resolv(Host, inet6).
+
 resolv(Host, Family) ->
     case inet:gethostbyname(Host, Family) of
         {error, nxdomain} ->
             resolv(Host, inet);
-        {ok, #hostent{h_addr_list = [IPaddr|_IPaddrs]}} ->
+        {ok, #hostent{h_addr_list = [IPaddr | _IPaddrs]}} ->
             {IPaddr, Family};
         Error ->
             Error
