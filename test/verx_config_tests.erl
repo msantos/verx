@@ -30,6 +30,7 @@
 %% POSSIBILITY OF SUCH DAMAGE.
 -module(verx_config_tests).
 
+-compile(nowarn_export_all).
 -compile(export_all).
 
 -include_lib("eunit/include/eunit.hrl").
