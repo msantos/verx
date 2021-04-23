@@ -111,11 +111,13 @@ reply(Ref, Serial) ->
 reply(Ref, Serial, Timeout) when is_pid(Ref), is_integer(Serial) ->
     receive
         {verx, Ref,
-            {#remote_message_header{
+            {
+                #remote_message_header{
                     serial = <<Serial:32>>,
                     type = <<?REMOTE_REPLY:32>>
                 },
-                _} = Reply} ->
+                _
+            } = Reply} ->
             verx_rpc:status(Reply)
     after Timeout -> {error, eagain}
     end.
@@ -130,20 +132,23 @@ recv(Ref, Timeout) ->
 recv(Ref, Serial, Timeout) when is_pid(Ref), is_integer(Serial) ->
     receive
         {verx, Ref,
-            {#remote_message_header{
+            {
+                #remote_message_header{
                     serial = <<Serial:32>>,
                     type = <<?REMOTE_STREAM:32>>,
                     status = <<?REMOTE_OK:32>>
                 },
-                []}} ->
+                []
+            }} ->
             ok;
-        {verx, Ref,
-            {#remote_message_header{
-                    serial = <<Serial:32>>,
-                    type = <<?REMOTE_STREAM:32>>,
-                    status = <<?REMOTE_CONTINUE:32>>
-                },
-                Payload}} ->
+        {verx, Ref, {
+            #remote_message_header{
+                serial = <<Serial:32>>,
+                type = <<?REMOTE_STREAM:32>>,
+                status = <<?REMOTE_CONTINUE:32>>
+            },
+            Payload
+        }} ->
             {ok, Payload}
     after Timeout -> {error, eagain}
     end.
@@ -157,28 +162,32 @@ recvall(Ref, Timeout) ->
 recvall(Ref, Timeout, Acc) when is_pid(Ref) ->
     receive
         {verx, Ref,
-            {#remote_message_header{
+            {
+                #remote_message_header{
                     type = <<?REMOTE_STREAM:32>>,
                     status = <<?REMOTE_OK:32>>
                 },
-                []}} ->
+                []
+            }} ->
             {ok, lists:reverse(Acc)};
         % XXX A stream indicates finish by setting the status to
         % XXX REMOTE_OK. For screenshots, an empty body is returned with the
         % XXX status set to 'continue'.
-        {verx, Ref,
-            {#remote_message_header{
-                    type = <<?REMOTE_STREAM:32>>,
-                    status = <<?REMOTE_CONTINUE:32>>
-                },
-                <<>>}} ->
+        {verx, Ref, {
+            #remote_message_header{
+                type = <<?REMOTE_STREAM:32>>,
+                status = <<?REMOTE_CONTINUE:32>>
+            },
+            <<>>
+        }} ->
             {ok, lists:reverse(Acc)};
-        {verx, Ref,
-            {#remote_message_header{
-                    type = <<?REMOTE_STREAM:32>>,
-                    status = <<?REMOTE_CONTINUE:32>>
-                },
-                Payload}} ->
+        {verx, Ref, {
+            #remote_message_header{
+                type = <<?REMOTE_STREAM:32>>,
+                status = <<?REMOTE_CONTINUE:32>>
+            },
+            Payload
+        }} ->
             recvall(Ref, Timeout, [Payload | Acc])
     after Timeout -> {ok, lists:reverse(Acc)}
     end.

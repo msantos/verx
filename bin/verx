@@ -137,7 +137,7 @@ call(["send-key", Name, Keycode | Arg]) ->
             Holdtime,
             [
                 list_to_integer(N)
-                || N <- string:tokens(Keycode, " ")
+             || N <- string:tokens(Keycode, " ")
             ],
             Flags
         ])
@@ -182,7 +182,7 @@ call(["pool-list" | Arg]) ->
                 {ok, [Autostart]} = verx:storage_pool_get_autostart(Ref, [N]),
                 {R, [{state, bool(Active)}, {autostart, bool(Autostart)}]}
             end
-            || R <- Res
+         || R <- Res
         ]}
     );
 call(["vol-list", Name | Arg]) ->
@@ -200,7 +200,7 @@ call(["vol-list", Name | Arg]) ->
                 {ok, [Path]} = verx:storage_vol_get_path(Ref, [N]),
                 {R, [{path, Path}]}
             end
-            || R <- Res
+         || R <- Res
         ]}
     );
 call(["vol-download", Name, File | Arg]) ->
@@ -279,7 +279,7 @@ call(["net-list" | Arg]) ->
                 {ok, [Autostart]} = verx:network_get_autostart(Ref, [Res]),
                 {Name, [{state, bool(Active)}, {autostart, bool(Autostart)}]}
             end
-            || Name <- List
+         || Name <- List
         ]}
     );
 call(["net-undefine", Name | Arg]) ->
@@ -427,7 +427,7 @@ domains(Ref, Domains) ->
                 end,
             {Name, [{uuid, uuid:uuid_to_string(UUID)}, {id, Id}]}
         end
-        || N <- Domains
+     || N <- Domains
     ].
 
 lookup(Ref, {domain, Name}) ->
@@ -549,18 +549,21 @@ console_recv(Name, Opt) ->
 console_read(Ref) ->
     receive
         {verx, Ref,
-            {#remote_message_header{
+            {
+                #remote_message_header{
                     type = <<?REMOTE_STREAM:32>>,
                     status = <<?REMOTE_OK:32>>
                 },
-                []}} ->
+                []
+            }} ->
             ok;
-        {verx, Ref,
-            {#remote_message_header{
-                    type = <<?REMOTE_STREAM:32>>,
-                    status = <<?REMOTE_CONTINUE:32>>
-                },
-                Buf}} ->
+        {verx, Ref, {
+            #remote_message_header{
+                type = <<?REMOTE_STREAM:32>>,
+                status = <<?REMOTE_CONTINUE:32>>
+            },
+            Buf
+        }} ->
             io:format("~s", [Buf]),
             console_read(Ref);
         {tty_read, Buf} ->

@@ -74,9 +74,12 @@ init([Pid, Opt]) ->
 
     % sun_family
     Sun =
-        <<(procket:sockaddr_common(?PF_LOCAL, Len))/binary,
+        <<
+            (procket:sockaddr_common(?PF_LOCAL, Len))/binary,
             % socket path
-            Path/binary, 0:((PathMax - Len) * 8)>>,
+            Path/binary,
+            0:((PathMax - Len) * 8)
+        >>,
 
     case procket:connect(Socket, Sun) of
         ok ->
@@ -105,10 +108,12 @@ handle_call(
     {Header, Call} = verx_rpc:call(Proc, Arg),
     Serial = Serial0 + 1,
     Message = verx_rpc:encode(
-        {Header#remote_message_header{
+        {
+            Header#remote_message_header{
                 serial = <<Serial:32>>
             },
-            Call}
+            Call
+        }
     ),
     Reply =
         case send_rpc(Port, Message) of
@@ -126,13 +131,15 @@ handle_call(
     } = State
 ) when is_binary(Buf) ->
     Message = verx_rpc:encode(
-        {#remote_message_header{
+        {
+            #remote_message_header{
                 proc = remote_protocol_xdr:enc_remote_procedure(Proc),
                 type = <<?REMOTE_STREAM:32>>,
                 serial = <<Serial:32>>,
                 status = <<?REMOTE_CONTINUE:32>>
             },
-            Buf}
+            Buf
+        }
     ),
     Reply = send_rpc(Port, Message),
     {reply, Reply, State};

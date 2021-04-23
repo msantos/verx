@@ -73,7 +73,7 @@ main(_) ->
     Exports_static = erl_syntax:attribute(erl_syntax:atom(export), [
         erl_syntax:list([
             erl_syntax:arity_qualifier(erl_syntax:atom(Fun), erl_syntax:integer(Arity))
-            || {Fun, Arity} <- static_exports()
+         || {Fun, Arity} <- static_exports()
         ])
     ]),
 
@@ -81,7 +81,7 @@ main(_) ->
     Exports_gen = erl_syntax:attribute(erl_syntax:atom(export), [
         erl_syntax:list([
             erl_syntax:arity_qualifier(erl_syntax:atom(Fun), erl_syntax:integer(Arity + 1))
-            || {Fun, _, Arity} <- Calls
+         || {Fun, _, Arity} <- Calls
         ])
     ]),
 
@@ -92,15 +92,18 @@ main(_) ->
                 case Arity of
                     0 ->
                         % name(Ref) -> verx_client:call(Ref, 'PROC_NAME').
-                        {[erl_syntax:variable("Ref")],
+                        {
+                            [erl_syntax:variable("Ref")],
                             erl_syntax:application(
                                 erl_syntax:atom(verx_client),
                                 erl_syntax:atom(call),
                                 [erl_syntax:variable("Ref"), erl_syntax:atom(Proc)]
-                            )};
+                            )
+                        };
                     _ ->
                         % name(Ref, Arg) -> verx_client:call(Ref, 'PROC_NAME', Arg).
-                        {[erl_syntax:variable("Ref"), erl_syntax:variable("Arg")],
+                        {
+                            [erl_syntax:variable("Ref"), erl_syntax:variable("Arg")],
                             erl_syntax:application(
                                 erl_syntax:atom(verx_client),
                                 erl_syntax:atom(call),
@@ -109,13 +112,14 @@ main(_) ->
                                     erl_syntax:atom(Proc),
                                     erl_syntax:variable("Arg")
                                 ]
-                            )}
+                            )
+                        }
                 end,
 
             Clause = erl_syntax:clause(Pattern, [], [Body]),
             erl_syntax:function(erl_syntax:atom(Fun), [Clause])
         end
-        || {Fun, Proc, Arity} <- Calls
+     || {Fun, Proc, Arity} <- Calls
     ],
 
     Code0 = erl_prettypr:format(
@@ -168,7 +172,7 @@ call_to_fun(Calls) ->
                 call_arity(Name, Exports)
             }
         end
-        || N <- Calls
+     || N <- Calls
     ].
 
 call_arity(Proc, Exports) ->

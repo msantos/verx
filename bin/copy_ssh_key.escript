@@ -17,8 +17,8 @@ main(Hosts) ->
 
     Path = hd([
         Dir ++ N
-        || N <- ["id_rsa.pub", "id_dsa.pub"],
-           ok == element(1, file:read_file_info(Dir ++ N))
+     || N <- ["id_rsa.pub", "id_dsa.pub"],
+        ok == element(1, file:read_file_info(Dir ++ N))
     ]),
 
     {ok, Pubkey} = file:read_file(Path),
@@ -35,7 +35,7 @@ upload(Host, Pubkey) ->
 
     Copy = [
         "printf '" ++ binary_to_list(N) ++ "' >> /etc/dropbear/authorized_keys"
-        || N <- Chunks
+     || N <- Chunks
     ],
 
     Cmd = ["", "> /etc/dropbear/authorized_keys" | Copy],

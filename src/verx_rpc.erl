@@ -245,17 +245,21 @@ field(status, <<?UINT32(?REMOTE_ERROR)>>) -> error;
 field(status, <<?UINT32(?REMOTE_CONTINUE)>>) -> continue.
 
 status(
-    {#remote_message_header{
+    {
+        #remote_message_header{
             status = Status
         },
-        []}
+        []
+    }
 ) ->
     verx_rpc:field(status, Status);
 status(
-    {#remote_message_header{
+    {
+        #remote_message_header{
             status = Status
         },
-        Reply}
+        Reply
+    }
 ) ->
     {verx_rpc:field(status, Status), Reply}.
 
