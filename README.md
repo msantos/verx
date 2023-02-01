@@ -193,7 +193,7 @@ See <http://libvirt.org/html/libvirt-libvirt.html>
     % Connect to the libvirtd socket
     {ok, Ref} = verx_client:start(),
 
-    % libvirt remote procotol open message
+    % libvirt remote protocol open message
     % by default to qemu:///system
     ok = verx:connect_open(Ref),
 
@@ -231,7 +231,7 @@ See <http://libvirt.org/html/libvirt-libvirt.html>
         % Connect to the libvirtd socket
         {ok, Ref} = verx_client:start(),
 
-        % libvirt remote procotol open message
+        % libvirt remote protocol open message
         ok = verx:connect_open(Ref),
 
         {ok, XML} = file:read_file(Path),
